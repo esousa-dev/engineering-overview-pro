@@ -43,7 +43,7 @@ Self-hosted HTTP API that renders **dynamic SVG cards** with GitHub profile stat
 
 The GitHub profile is **always** selected via the query string (`?username=<login>`). End users put their GitHub username in the URL; the server fetches data from the GitHub API and returns SVG.
 
-**Maintainer:** [esousa-dev](https://github.com/esousa-dev)
+**Maintainer:** [ESousa97](https://github.com/esousa97)
 
 ## Features
 
