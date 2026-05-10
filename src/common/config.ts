@@ -19,5 +19,8 @@ export function resolveTrustProxy(): boolean | string[] {
   const raw = (process.env['TRUST_PROXY'] ?? '').trim();
   if (raw === '' || raw === 'false' || raw === '0') return false;
   if (raw === 'true' || raw === '1') return true;
-  return raw.split(',').map((s) => s.trim()).filter(Boolean);
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }

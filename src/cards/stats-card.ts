@@ -5,15 +5,7 @@
 import { renderBaseCard, FONT_FAMILY } from '../common/card.js';
 import { escapeXml, formatNumber } from '../common/utils.js';
 import { t } from '../common/i18n.js';
-import {
-  iconStar,
-  iconCommit,
-  iconPullRequest,
-  iconIssue,
-  iconContributions,
-  iconRepo,
-  iconCode,
-} from '../common/icons.js';
+import { iconCommit, iconContributions, iconRepo, iconCode } from '../common/icons.js';
 
 import type { UserStats, CardOptions } from '../types/index.js';
 

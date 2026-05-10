@@ -7,47 +7,10 @@ import { z } from 'zod';
 
 import { retryWithBackoff } from '../common/retryer.js';
 import { cacheManager } from '../common/cache.js';
+import { DEVOPS_QUERY } from '../graphql/github-queries.js';
 import { fetchCodeFactorGrade } from './codefactor-fetcher.js';
 
 import type { DevOpsData, RankLevel } from '../types/index.js';
-
-// --- GraphQL Query ---
-
-const DEVOPS_QUERY = `
-  query devopsStats($login: String!) {
-    user(login: $login) {
-      repositories(first: 100, ownerAffiliations: [OWNER, COLLABORATOR], orderBy: { field: PUSHED_AT, direction: DESC }) {
-        nodes {
-          name
-          isPrivate
-          isArchived
-          updatedAt
-          description
-          repositoryTopics(first: 1) { totalCount }
-          owner { login }
-          workflows: object(expression: "HEAD:.github/workflows") {
-            ... on Tree { entries { name } }
-          }
-          dependabotYml: object(expression: "HEAD:.github/dependabot.yml") {
-            ... on Blob { byteSize }
-          }
-          dependabotYaml: object(expression: "HEAD:.github/dependabot.yaml") {
-            ... on Blob { byteSize }
-          }
-          defaultBranchRef {
-            target {
-              ... on Commit {
-                statusCheckRollup {
-                  state
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-`;
 
 // --- Schemas ---
 
@@ -59,7 +22,10 @@ const RepoDevOpsSchema = z.object({
   description: z.string().nullable(),
   repositoryTopics: z.object({ totalCount: z.number() }).nullable(),
   owner: z.object({ login: z.string() }),
-  workflows: z.object({ entries: z.array(z.object({ name: z.string() })) }).nullable().optional(),
+  workflows: z
+    .object({ entries: z.array(z.object({ name: z.string() })) })
+    .nullable()
+    .optional(),
   dependabotYml: z.object({ byteSize: z.number() }).nullable().optional(),
   dependabotYaml: z.object({ byteSize: z.number() }).nullable().optional(),
   defaultBranchRef: z
@@ -124,7 +90,7 @@ export async function fetchDevOps(username: string): Promise<DevOpsData> {
 
   const allRepos = data.user.repositories.nodes;
   const publicRepos = allRepos.filter((r) => !r.isPrivate);
-  
+
   const totalRepos = allRepos.length;
   if (totalRepos === 0) {
     return createEmptyDevOpsData();
@@ -134,9 +100,9 @@ export async function fetchDevOps(username: string): Promise<DevOpsData> {
   let hasActionsCount = 0;
   let totalRuns = 0;
   let successfulRuns = 0;
-  
+
   let dependabotCount = 0;
-  
+
   let archivedRepos = 0;
   let wellOrganizedCount = 0;
 
@@ -170,7 +136,7 @@ export async function fetchDevOps(username: string): Promise<DevOpsData> {
       const isUpdatedRecently = new Date(repo.updatedAt) > oneYearAgo;
       const hasDescription = (repo.description ?? '').trim().length > 0;
       const hasTopics = (repo.repositoryTopics?.totalCount ?? 0) > 0;
-      
+
       if (!isUpdatedRecently) {
         // Not archived but inactive for > 1 year: badly organized
       } else if (hasDescription && hasTopics) {
@@ -185,14 +151,14 @@ export async function fetchDevOps(username: string): Promise<DevOpsData> {
   // CodeFactor (Security proxy)
   let aPlusCount = 0;
   let codeFactorTotal = 0;
-  
+
   const CHUNK_SIZE = 5;
   for (let i = 0; i < publicRepos.length; i += CHUNK_SIZE) {
     const chunk = publicRepos.slice(i, i + CHUNK_SIZE);
     const grades = await Promise.all(
-      chunk.map((repo) => fetchCodeFactorGrade(repo.owner.login, repo.name))
+      chunk.map((repo) => fetchCodeFactorGrade(repo.owner.login, repo.name)),
     );
-    
+
     for (const grade of grades) {
       if (grade) {
         codeFactorTotal++;
@@ -204,18 +170,19 @@ export async function fetchDevOps(username: string): Promise<DevOpsData> {
   }
 
   // Calculate Scores (0-100)
-  
+
   // CI/CD Score
   const actionsImplScore = (hasActionsCount / totalRepos) * 100;
-  const successRate = totalRuns > 0 ? (successfulRuns / totalRuns) * 100 : (hasActionsCount > 0 ? 0 : 100);
+  const successRate =
+    totalRuns > 0 ? (successfulRuns / totalRuns) * 100 : hasActionsCount > 0 ? 0 : 100;
   // Weight: 40% implementation, 60% success rate
-  const ciCdScore = (actionsImplScore * 0.4) + (successRate * 0.6);
+  const ciCdScore = actionsImplScore * 0.4 + successRate * 0.6;
 
   // Security Score
   const dependabotScore = (dependabotCount / totalRepos) * 100;
   const codeFactorScore = codeFactorTotal > 0 ? (aPlusCount / codeFactorTotal) * 100 : 100; // If no codefactor, assume good
   // Weight: 30% dependabot, 70% CodeQuality
-  const securityScore = (dependabotScore * 0.3) + (codeFactorScore * 0.7);
+  const securityScore = dependabotScore * 0.3 + codeFactorScore * 0.7;
 
   // Organization Score
   const orgScore = (wellOrganizedCount / totalRepos) * 100;
@@ -254,7 +221,13 @@ export async function fetchDevOps(username: string): Promise<DevOpsData> {
 function createEmptyDevOpsData(): DevOpsData {
   return {
     ciCd: { hasActionsCount: 0, totalRuns: 0, successRate: 0, grade: 'C' },
-    security: { dependabotCount: 0, codeFactorAPlusCount: 0, codeFactorTotal: 0, advisories: 0, grade: 'C' },
+    security: {
+      dependabotCount: 0,
+      codeFactorAPlusCount: 0,
+      codeFactorTotal: 0,
+      advisories: 0,
+      grade: 'C',
+    },
     organization: { totalRepos: 0, archivedRepos: 0, wellOrganizedCount: 0, grade: 'C' },
     overallGrade: 'C',
   };

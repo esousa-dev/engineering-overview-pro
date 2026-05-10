@@ -73,16 +73,13 @@ async function buildServer(): Promise<FastifyInstance> {
   // ---------- Bloquear métodos que não sejam GET/HEAD ----------
   server.addHook('onRequest', async (request, reply) => {
     if (!ALLOWED_METHODS.has(request.method)) {
-      await reply
-        .status(405)
-        .header('Allow', 'GET, HEAD')
-        .send({ error: 'Method Not Allowed' });
+      await reply.status(405).header('Allow', 'GET, HEAD').send({ error: 'Method Not Allowed' });
     }
   });
 
   // ---------- Rotas ----------
-  server.get('/', async () => ({
-    message: 'Antigravity GitHub Stats API is running.',
+  server.get('/', () => ({
+    message: 'engineering-overview-pro API is running.',
     health: '/health',
     usage: 'Pass ?username=<github-login> to any /api/* route.',
     routes: [
@@ -92,6 +89,7 @@ async function buildServer(): Promise<FastifyInstance> {
       '/api/activity?username=<login>',
       '/api/pin?username=<login>',
       '/api/devops?username=<login>',
+      '/api/coding-stats?username=<login>',
       '/api/wakatime?username=<login>',
     ],
   }));
@@ -142,8 +140,12 @@ async function start(): Promise<void> {
     process.exit(0);
   };
 
-  process.on('SIGTERM', () => { void shutdown(); });
-  process.on('SIGINT', () => { void shutdown(); });
+  process.on('SIGTERM', () => {
+    void shutdown();
+  });
+  process.on('SIGINT', () => {
+    void shutdown();
+  });
 }
 
 void start();

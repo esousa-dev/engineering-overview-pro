@@ -1,11 +1,7 @@
 import { renderBaseCard, FONT_FAMILY } from '../common/card.js';
 import { escapeXml } from '../common/utils.js';
 import { t } from '../common/i18n.js';
-import {
-  iconArchive,
-  iconCheck,
-  iconShield,
-} from '../common/icons.js';
+import { iconArchive, iconCheck, iconShield } from '../common/icons.js';
 import type { DevOpsData, CardOptions, ThemeConfig } from '../types/index.js';
 
 interface StatItem {
@@ -28,15 +24,15 @@ function getGradeColor(g: string, theme: ThemeConfig): string {
 }
 
 function getGradeProgress(g: string): number {
-  if (g === 'S+')  return 100;
-  if (g === 'S')   return 95;
+  if (g === 'S+') return 100;
+  if (g === 'S') return 95;
   if (g === 'A++') return 92;
-  if (g === 'A+')  return 85;
-  if (g === 'A')   return 78;
-  if (g === 'B+')  return 65;
-  if (g === 'B')   return 55;
-  if (g === 'C')   return 40;
-  if (g === 'D')   return 22;
+  if (g === 'A+') return 85;
+  if (g === 'A') return 78;
+  if (g === 'B+') return 65;
+  if (g === 'B') return 55;
+  if (g === 'C') return 40;
+  if (g === 'D') return 22;
   return 10;
 }
 
@@ -82,32 +78,28 @@ interface ScorePanelParams {
 
 // Exported dimensions so caller can compute centering.
 const SCORE = {
-  RADIUS:     54,
-  STROKE_W:   5,
-  PIP_GAP_Y:  14,   // gap between circle bottom and pip label row
+  RADIUS: 54,
+  STROKE_W: 5,
+  PIP_GAP_Y: 14, // gap between circle bottom and pip label row
   PIP_LABEL_H: 9,
   PIP_VALUE_H: 14,
   PIP_ROW_GAP: 6,
-  PIP_SPACING: 50,  // horizontal distance between pips
+  PIP_SPACING: 50, // horizontal distance between pips
 } as const;
 
 /** Total height of the score block (circle diameter + pips). */
 export const SCORE_BLOCK_HEIGHT =
-  SCORE.RADIUS * 2 +
-  SCORE.PIP_GAP_Y +
-  SCORE.PIP_LABEL_H +
-  SCORE.PIP_ROW_GAP +
-  SCORE.PIP_VALUE_H; // 108 + 14 + 9 + 6 + 14 = 151
+  SCORE.RADIUS * 2 + SCORE.PIP_GAP_Y + SCORE.PIP_LABEL_H + SCORE.PIP_ROW_GAP + SCORE.PIP_VALUE_H; // 108 + 14 + 9 + 6 + 14 = 151
 
 function renderScorePanel({ data, theme, disabled }: ScorePanelParams): string {
   const { RADIUS, STROKE_W, PIP_GAP_Y, PIP_LABEL_H, PIP_ROW_GAP, PIP_SPACING } = SCORE;
   const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-  const normalizedGrade: string = data.overallGrade ?? '?';
-  const progressPct   = getGradeProgress(normalizedGrade);
-  const dashOffset    = ((100 - progressPct) / 100) * CIRCUMFERENCE;
-  const arcColor      = getGradeColor(normalizedGrade, theme);
-  const gradId        = `dvGrad${normalizedGrade.replace(/[^a-zA-Z0-9]/g, 'X')}`;
+  const normalizedGrade: string = data.overallGrade;
+  const progressPct = getGradeProgress(normalizedGrade);
+  const dashOffset = ((100 - progressPct) / 100) * CIRCUMFERENCE;
+  const arcColor = getGradeColor(normalizedGrade, theme);
+  const gradId = `dvGrad${normalizedGrade.replace(/[^a-zA-Z0-9]/g, 'X')}`;
 
   // In local coords: circle center is at (0, RADIUS)
   const CX = 0;
@@ -117,7 +109,9 @@ function renderScorePanel({ data, theme, disabled }: ScorePanelParams): string {
     ? `stroke-dashoffset: ${String(dashOffset)};`
     : `animation: dvArcIn 0.85s cubic-bezier(0.25,0.46,0.45,0.94) 400ms forwards; stroke-dashoffset: ${String(CIRCUMFERENCE)};`;
 
-  const animKeys = disabled ? '' : `
+  const animKeys = disabled
+    ? ''
+    : `
     @keyframes dvArcIn {
       from { stroke-dashoffset: ${String(CIRCUMFERENCE)}; }
       to   { stroke-dashoffset: ${String(dashOffset)}; }
@@ -132,14 +126,15 @@ function renderScorePanel({ data, theme, disabled }: ScorePanelParams): string {
 
   const dims = [
     { label: 'CI/CD', grade: data.ciCd.grade },
-    { label: 'SEC',   grade: data.security.grade },
-    { label: 'ORG',   grade: data.organization.grade },
+    { label: 'SEC', grade: data.security.grade },
+    { label: 'ORG', grade: data.organization.grade },
   ] as const;
 
-  const pipSvg = dims.map((d, i) => {
-    const px = (i - 1) * PIP_SPACING; // -50, 0, +50 — centered on CX=0
-    const pc = getGradeColor(d.grade, theme);
-    return `
+  const pipSvg = dims
+    .map((d, i) => {
+      const px = (i - 1) * PIP_SPACING; // -50, 0, +50 — centered on CX=0
+      const pc = getGradeColor(d.grade, theme);
+      return `
       <text x="${String(px)}" y="${String(pipLabelY)}"
         text-anchor="middle" dominant-baseline="central"
         font-family="${FONT_FAMILY}" font-size="9" font-weight="500"
@@ -152,7 +147,8 @@ function renderScorePanel({ data, theme, disabled }: ScorePanelParams): string {
         fill="${pc}">
         ${escapeXml(d.grade)}
       </text>`;
-  }).join('');
+    })
+    .join('');
 
   const sepY = CY + RADIUS + Math.round(PIP_GAP_Y / 2);
 
@@ -201,7 +197,7 @@ function renderScorePanel({ data, theme, disabled }: ScorePanelParams): string {
 
     <!-- pip separator -->
     <line x1="${String(-PIP_SPACING - 10)}" y1="${String(sepY)}"
-          x2="${String( PIP_SPACING + 10)}" y2="${String(sepY)}"
+          x2="${String(PIP_SPACING + 10)}" y2="${String(sepY)}"
       stroke="${theme.border}" stroke-width="1" stroke-opacity="0.2" />
 
     ${pipSvg}`;
@@ -213,22 +209,22 @@ export function renderDevOpsCard(data: DevOpsData, options: CardOptions): string
   const { theme, locale, disableAnimations } = options;
 
   // ── Layout constants ─────────────────────────────────────────────
-  const CARD_WIDTH   = 560;
-  const ROW_HEIGHT   = 80;
+  const CARD_WIDTH = 560;
+  const ROW_HEIGHT = 80;
   const BODY_PAD_TOP = 24;
-  const BOTTOM_PAD   = 24;
+  const BOTTOM_PAD = 24;
 
-  const LEFT_PAD    = 24;
-  const ACCENT_W    = 2;
+  const LEFT_PAD = 24;
+  const ACCENT_W = 2;
   const ICON_OFFSET = 14;
-  const TEXT_X      = 40;
-  const SEP_RIGHT   = 288;
+  const TEXT_X = 40;
+  const SEP_RIGHT = 288;
 
-  const DIVIDER_X   = 318;
-  const RIGHT_CX    = DIVIDER_X + (CARD_WIDTH - DIVIDER_X) / 2; // 456
+  const DIVIDER_X = 318;
+  const RIGHT_CX = DIVIDER_X + (CARD_WIDTH - DIVIDER_X) / 2; // 456
   // ─────────────────────────────────────────────────────────────────
 
-  const items      = buildStatItems(data, theme);
+  const items = buildStatItems(data, theme);
   const listHeight = items.length * ROW_HEIGHT; // 240
 
   // Center the block's bounding-box inside the body area.
@@ -236,18 +232,20 @@ export function renderDevOpsCard(data: DevOpsData, options: CardOptions): string
   const scoreTopY = BODY_PAD_TOP + Math.round((listHeight - SCORE_BLOCK_HEIGHT) / 2);
 
   // ── Stat rows ─────────────────────────────────────────────────────
-  const statRows = items.map((item, index) => {
-    const rowY  = BODY_PAD_TOP + index * ROW_HEIGHT;
-    const delay = (index + 1) * 90;
-    const staggerStyle = disableAnimations ? '' : `animation-delay: ${String(delay)}ms;`;
-    const midY  = ROW_HEIGHT / 2; // 40
+  const statRows = items
+    .map((item, index) => {
+      const rowY = BODY_PAD_TOP + index * ROW_HEIGHT;
+      const delay = (index + 1) * 90;
+      const staggerStyle = disableAnimations ? '' : `animation-delay: ${String(delay)}ms;`;
+      const midY = ROW_HEIGHT / 2; // 40
 
-    const separator = index > 0
-      ? `<line x1="${String(TEXT_X)}" y1="0" x2="${String(SEP_RIGHT)}" y2="0"
+      const separator =
+        index > 0
+          ? `<line x1="${String(TEXT_X)}" y1="0" x2="${String(SEP_RIGHT)}" y2="0"
            stroke="${theme.border}" stroke-width="1" stroke-opacity="0.18" />`
-      : '';
+          : '';
 
-    return `
+      return `
     <g transform="translate(${String(LEFT_PAD)}, ${String(rowY)})">
       <g class="stagger" style="${staggerStyle}">
         ${separator}
@@ -274,10 +272,11 @@ export function renderDevOpsCard(data: DevOpsData, options: CardOptions): string
         </text>
       </g>
     </g>`;
-  }).join('');
+    })
+    .join('');
 
   // ── Vertical divider ──────────────────────────────────────────────
-  const divTop    = BODY_PAD_TOP + 8;
+  const divTop = BODY_PAD_TOP + 8;
   const divBottom = BODY_PAD_TOP + listHeight - 8;
 
   const verticalDivider = `
@@ -325,7 +324,7 @@ export function renderDevOpsCard(data: DevOpsData, options: CardOptions): string
     ${statRows}
     ${scorePanel}`;
 
-  const title      = options.customTitle ?? t('devops.title', locale);
+  const title = options.customTitle ?? t('devops.title', locale);
   const bodyOffset = options.hideTitle ? 30 : 55;
   const cardHeight = Math.max(bodyOffset + BODY_PAD_TOP + listHeight + BOTTOM_PAD, 200);
 

@@ -7,53 +7,9 @@ import { z } from 'zod';
 
 import { retryWithBackoff } from '../common/retryer.js';
 import { cacheManager } from '../common/cache.js';
+import { STATS_QUERY } from '../graphql/github-queries.js';
 
 import type { UserStats, RankInfo, RankLevel } from '../types/index.js';
-
-// --- GraphQL query ---
-
-const STATS_QUERY = `
-  query userStats($login: String!) {
-    user(login: $login) {
-      name
-      login
-      repositories(
-        first: 100
-        ownerAffiliations: OWNER
-        orderBy: { field: STARGAZERS, direction: DESC }
-      ) {
-        totalCount
-        nodes {
-          stargazerCount
-          isArchived
-          isFork
-          isPrivate
-        }
-        pageInfo {
-          hasNextPage
-          endCursor
-        }
-      }
-      pullRequests(first: 1) {
-        totalCount
-      }
-      issues(first: 1) {
-        totalCount
-      }
-      contributionsCollection {
-        totalCommitContributions
-        restrictedContributionsCount
-        totalRepositoriesWithContributedCommits
-      }
-      repositoriesContributedTo(first: 1, contributionTypes: [COMMIT, ISSUE, PULL_REQUEST, REPOSITORY]) {
-        totalCount
-      }
-      followers(first: 1) {
-        totalCount
-      }
-    }
-  }
-`;
 
 // --- Zod validation for GraphQL response ---
 
@@ -103,7 +59,7 @@ function calculateRank(
   const STAR_WEIGHT = 2;
   const COMMIT_WEIGHT = 2; // Valorizando o esforço diário de estudos
   const PR_WEIGHT = 3;
-  const ISSUE_WEIGHT = 2;  // Valorizando uso de issues para organização
+  const ISSUE_WEIGHT = 2; // Valorizando uso de issues para organização
   const CONTRIB_WEIGHT = 1;
 
   const score =

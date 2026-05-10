@@ -107,10 +107,7 @@ export function renderWakatimeCard(data: WakaTimeData, options: WakatimeCardOpti
 
   const bodyOffset = options.hideTitle ? 30 : 55;
   const paddingBottom = 20;
-  const cardHeight = Math.max(
-    bodyOffset + footerY + (data.bestDay ? 25 : 0) + paddingBottom,
-    160,
-  );
+  const cardHeight = Math.max(bodyOffset + footerY + (data.bestDay ? 25 : 0) + paddingBottom, 160);
 
   const title = options.customTitle ?? t('wakatime.title', locale);
 

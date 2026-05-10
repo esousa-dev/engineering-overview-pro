@@ -2,60 +2,68 @@ import { z } from 'zod';
 import { graphql } from '@octokit/graphql';
 import { retryWithBackoff } from '../common/retryer.js';
 import { sanitizeSvgColor } from '../common/utils.js';
+import { PINNED_REPOS_QUERY, REPO_INFO_QUERY } from '../graphql/github-queries.js';
 import type { PinData } from '../types/index.js';
 
 /**
  * Zod schema for single repository data
  */
 const RepoResponseSchema = z.object({
-  repository: z.object({
-    name: z.string(),
-    owner: z.object({
-      login: z.string(),
-    }),
-    description: z.string().nullable(),
-    primaryLanguage: z
-      .object({
+  repository: z
+    .object(
+      {
         name: z.string(),
-        color: z.string().nullable(),
-      })
-      .nullable(),
-    stargazerCount: z.number({ required_error: 'stargazerCount is required' }),
-    forkCount: z.number({ required_error: 'forkCount is required' }),
-    isArchived: z.boolean({ required_error: 'isArchived is required' }),
-    isFork: z.boolean({ required_error: 'isFork is required' }),
-    isPrivate: z.boolean({ required_error: 'isPrivate is required' }),
-  }, { required_error: 'repository object is required' }).nullable(),
+        owner: z.object({
+          login: z.string(),
+        }),
+        description: z.string().nullable(),
+        primaryLanguage: z
+          .object({
+            name: z.string(),
+            color: z.string().nullable(),
+          })
+          .nullable(),
+        stargazerCount: z.number({ required_error: 'stargazerCount is required' }),
+        forkCount: z.number({ required_error: 'forkCount is required' }),
+        isArchived: z.boolean({ required_error: 'isArchived is required' }),
+        isFork: z.boolean({ required_error: 'isFork is required' }),
+        isPrivate: z.boolean({ required_error: 'isPrivate is required' }),
+      },
+      { required_error: 'repository object is required' },
+    )
+    .nullable(),
 });
 
 /**
  * Zod schema for pinned repositories response
  */
 const PinnedReposSchema = z.object({
-  user: z.object({
-    pinnedItems: z.object({
-      nodes: z.array(
-        z.object({
-          name: z.string(),
-          owner: z.object({
-            login: z.string(),
+  user: z
+    .object({
+      pinnedItems: z.object({
+        nodes: z.array(
+          z.object({
+            name: z.string(),
+            owner: z.object({
+              login: z.string(),
+            }),
+            description: z.string().nullable(),
+            primaryLanguage: z
+              .object({
+                name: z.string(),
+                color: z.string().nullable(),
+              })
+              .nullable(),
+            stargazerCount: z.number(),
+            forkCount: z.number(),
+            isArchived: z.boolean(),
+            isFork: z.boolean(),
+            isPrivate: z.boolean(),
           }),
-          description: z.string().nullable(),
-          primaryLanguage: z
-            .object({
-              name: z.string(),
-              color: z.string().nullable(),
-            })
-            .nullable(),
-          stargazerCount: z.number(),
-          forkCount: z.number(),
-          isArchived: z.boolean(),
-          isFork: z.boolean(),
-          isPrivate: z.boolean(),
-        }),
-      ),
-    }),
-  }).nullable(),
+        ),
+      }),
+    })
+    .nullable(),
 });
 
 /**
@@ -64,35 +72,8 @@ const PinnedReposSchema = z.object({
 export async function fetchPinnedRepos(username: string): Promise<PinData[]> {
   const login = username;
 
-  const query = `
-    query pinnedRepos($login: String!) {
-      user(login: $login) {
-        pinnedItems(first: 6, types: REPOSITORY) {
-          nodes {
-            ... on Repository {
-              name
-              owner {
-                login
-              }
-              description
-              primaryLanguage {
-                name
-                color
-              }
-              stargazerCount
-              forkCount
-              isArchived
-              isFork
-              isPrivate
-            }
-          }
-        }
-      }
-    }
-  `;
-
   const data = await retryWithBackoff(async (token: string) => {
-    const response: unknown = await graphql(query, {
+    const response: unknown = await graphql(PINNED_REPOS_QUERY, {
       login,
       headers: { authorization: `Bearer ${token}` },
     });
@@ -131,29 +112,8 @@ export async function fetchPinnedRepos(username: string): Promise<PinData[]> {
  * Fetches data for a single repository to be used in the Pin Card.
  */
 export async function fetchRepo(username: string, repo: string): Promise<PinData> {
-  const query = `
-    query repoInfo($login: String!, $repo: String!) {
-      repository(owner: $login, name: $repo) {
-        name
-        owner {
-          login
-        }
-        description
-        primaryLanguage {
-          name
-          color
-        }
-        stargazerCount
-        forkCount
-        isArchived
-        isFork
-        isPrivate
-      }
-    }
-  `;
-
   const data = await retryWithBackoff(async (token: string) => {
-    const response: unknown = await graphql(query, {
+    const response: unknown = await graphql(REPO_INFO_QUERY, {
       login: username,
       repo,
       headers: { authorization: `Bearer ${token}` },

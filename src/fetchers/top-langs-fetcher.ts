@@ -8,37 +8,9 @@ import { z } from 'zod';
 import { retryWithBackoff } from '../common/retryer.js';
 import { cacheManager } from '../common/cache.js';
 import { sanitizeSvgColor } from '../common/utils.js';
+import { TOP_LANGS_QUERY } from '../graphql/github-queries.js';
 
 import type { LanguageData } from '../types/index.js';
-
-// --- GraphQL query ---
-
-const TOP_LANGS_QUERY = `
-  query userInfo($login: String!, $after: String) {
-    user(login: $login) {
-      repositories(ownerAffiliations: OWNER, first: 100, after: $after, isFork: false) {
-        pageInfo {
-          hasNextPage
-          endCursor
-        }
-        nodes {
-          isArchived
-          isFork
-          isPrivate
-          languages(first: 100, orderBy: {field: SIZE, direction: DESC}) {
-            edges {
-              size
-              node {
-                color
-                name
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-`;
 
 // --- Zod validation for GraphQL response ---
 

@@ -39,7 +39,10 @@ function renderCardBody(data: PinData, options: PinCardOptions, isStandalone = f
   const ownerSlash = `${data.owner} /`;
 
   // Description: wrap to 2 lines, better density
-  const descLines = wrapText(data.description || 'No description provided.', isStandalone ? 64 : 58).slice(0, 2);
+  const descLines = wrapText(
+    data.description || 'No description provided.',
+    isStandalone ? 64 : 58,
+  ).slice(0, 2);
   const descriptionHtml = descLines
     .map((line, i) => `<tspan x="0" dy="${i === 0 ? '0' : '1.4em'}">${escapeXml(line)}</tspan>`)
     .join('');
@@ -48,12 +51,14 @@ function renderCardBody(data: PinData, options: PinCardOptions, isStandalone = f
   const langName = data.primaryLanguage?.name || '';
   const pillWidth = langName ? langName.length * 8 + 38 : 0;
 
-  const langPill = langName ? `
+  const langPill = langName
+    ? `
     <g transform="translate(0, 0)">
       <rect width="${String(pillWidth)}" height="26" rx="13" fill="${accentColor}" fill-opacity="0.1" stroke="${accentColor}" stroke-opacity="0.2" stroke-width="1" />
       <circle cx="14" cy="13" r="4.5" fill="${accentColor}" />
       <text x="24" y="13" class="lang-text" dominant-baseline="central">${escapeXml(langName)}</text>
-    </g>` : '';
+    </g>`
+    : '';
 
   const statsX = langName ? pillWidth + 16 : 0;
 
@@ -69,15 +74,17 @@ function renderCardBody(data: PinData, options: PinCardOptions, isStandalone = f
       <text x="22" y="13" class="stat-text" dominant-baseline="central">${formatNumber(data.forkCount)}</text>
     </g>`;
 
-  const archivedBadge = data.isArchived ? `
+  const archivedBadge = data.isArchived
+    ? `
     <g transform="translate(0, 0)">
       <rect width="100" height="26" rx="13" fill="${theme.red}" fill-opacity="0.12" stroke="${theme.red}" stroke-opacity="0.3" stroke-width="1" />
       <g transform="translate(13, 5)">${iconArchive(theme.red)}</g>
       <text x="62" y="13" fill="${theme.red}" class="badge-text" text-anchor="middle" dominant-baseline="central">Archived</text>
-    </g>` : '';
+    </g>`
+    : '';
 
   // Unique ID for gradients to prevent overlap between cards
-  const uniqueId = `pin-${data.name.replace(/[^a-zA-Z0-9]/g, '')}-${Math.floor(Math.random() * 10000)}`;
+  const uniqueId = `pin-${data.name.replace(/[^a-zA-Z0-9]/g, '')}-${String(Math.floor(Math.random() * 10000))}`;
 
   return `
     <defs>
@@ -139,27 +146,31 @@ function renderSinglePinBody(data: PinData, options: PinCardOptions, _index: num
  */
 export function renderPinnedCards(repos: PinData[], options: PinCardOptions): string {
   const rows = Math.ceil(repos.length / GRID_COLUMNS);
-  const totalWidth = GRID_PADDING_X * 2 + GRID_COLUMNS * SINGLE_CARD_WIDTH + (GRID_COLUMNS - 1) * GRID_GAP_X;
-  const totalHeight = GRID_PADDING_TOP + rows * SINGLE_CARD_HEIGHT + (rows - 1) * GRID_GAP_Y + GRID_PADDING_BOTTOM;
+  const totalWidth =
+    GRID_PADDING_X * 2 + GRID_COLUMNS * SINGLE_CARD_WIDTH + (GRID_COLUMNS - 1) * GRID_GAP_X;
+  const totalHeight =
+    GRID_PADDING_TOP + rows * SINGLE_CARD_HEIGHT + (rows - 1) * GRID_GAP_Y + GRID_PADDING_BOTTOM;
 
   const { theme, disableAnimations } = options;
   const borderRadius = options.borderRadius;
 
-  const cards = repos.map((repo, i) => {
-    const col = i % GRID_COLUMNS;
-    const row = Math.floor(i / GRID_COLUMNS);
-    const x = GRID_PADDING_X + col * (SINGLE_CARD_WIDTH + GRID_GAP_X);
-    const y = GRID_PADDING_TOP + row * (SINGLE_CARD_HEIGHT + GRID_GAP_Y);
-    const delay = 200 + i * 120;
-    const cardSvg = renderSinglePinBody(repo, options, i);
+  const cards = repos
+    .map((repo, i) => {
+      const col = i % GRID_COLUMNS;
+      const row = Math.floor(i / GRID_COLUMNS);
+      const x = GRID_PADDING_X + col * (SINGLE_CARD_WIDTH + GRID_GAP_X);
+      const y = GRID_PADDING_TOP + row * (SINGLE_CARD_HEIGHT + GRID_GAP_Y);
+      const delay = 200 + i * 120;
+      const cardSvg = renderSinglePinBody(repo, options, i);
 
-    return `
+      return `
       <g transform="translate(${String(x)}, ${String(y)})">
         <g class="card-enter" style="animation-delay: ${String(delay)}ms;">
           ${cardSvg}
         </g>
       </g>`;
-  }).join('\n');
+    })
+    .join('\n');
 
   return `
 <svg
@@ -210,10 +221,14 @@ export function renderPinnedCards(repos: PinData[], options: PinCardOptions): st
     .header-line { animation: lineGrow 1s cubic-bezier(0.22, 1, 0.36, 1) forwards; transform-origin: center; }
     @keyframes lineGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
-    ${disableAnimations ? `
+    ${
+      disableAnimations
+        ? `
       .card-enter { opacity: 1; animation: none; }
       .header-line { animation: none; transform: scaleX(1); }
-    ` : ''}
+    `
+        : ''
+    }
   </style>
 
   <rect x="0.5" y="0.5" width="${String(totalWidth - 1)}" height="${String(totalHeight - 1)}" rx="${String(borderRadius)}" fill="${theme.bg}" stroke="${options.hideBorder ? 'none' : theme.border}" stroke-opacity="0.3" />
@@ -236,7 +251,7 @@ export function renderPinnedCards(repos: PinData[], options: PinCardOptions): st
  * Render individual repository pin card SVG.
  */
 export function renderPinCard(data: PinData, options: PinCardOptions): string {
-  const { theme, disableAnimations } = options;
+  const { theme } = options;
 
   const body = `
     <defs>

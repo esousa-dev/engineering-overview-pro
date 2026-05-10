@@ -34,14 +34,18 @@ const GithubEventSchema = z.object({
     name: z.string(),
     url: z.string(),
   }),
-  payload: z.object({
-    size: z.number().optional(), // commit count in PushEvent
-    action: z.string().optional(),
-    pull_request: z.object({
-      additions: z.number().optional(),
-      deletions: z.number().optional(),
-    }).optional(),
-  }).optional(),
+  payload: z
+    .object({
+      size: z.number().optional(), // commit count in PushEvent
+      action: z.string().optional(),
+      pull_request: z
+        .object({
+          additions: z.number().optional(),
+          deletions: z.number().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
 });
 
 const RepoLanguagesSchema = z.record(z.string(), z.number());
@@ -58,12 +62,15 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
 
   // 1. Fetch User Events
   const events = await retryWithBackoff(async (token: string) => {
-    const response = await fetch(`${GITHUB_REST_API}/users/${username}/events/public?per_page=100`, {
-      headers: {
-        Authorization: `token ${token}`,
-        'User-Agent': 'Antigravity-GitHub-Stats',
+    const response = await fetch(
+      `${GITHUB_REST_API}/users/${username}/events/public?per_page=100`,
+      {
+        headers: {
+          Authorization: `token ${token}`,
+          'User-Agent': 'engineering-overview-pro',
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       if (response.status === 404) throw new Error(`User "${username}" not found.`);
@@ -101,12 +108,13 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
   if (filteredEvents.length > 5) {
     const intervals: number[] = [];
     for (let i = 1; i < filteredEvents.length; i++) {
-        const current = filteredEvents[i];
-        const prev = filteredEvents[i - 1];
-        if (current && prev) {
-          const diff = (new Date(current.created_at).getTime() - new Date(prev.created_at).getTime()) / 1000;
-          if (diff > 0 && diff < 3600) intervals.push(diff);
-        }
+      const current = filteredEvents[i];
+      const prev = filteredEvents[i - 1];
+      if (current && prev) {
+        const diff =
+          (new Date(current.created_at).getTime() - new Date(prev.created_at).getTime()) / 1000;
+        if (diff > 0 && diff < 3600) intervals.push(diff);
+      }
     }
     if (intervals.length > 0) {
       intervals.sort((a, b) => a - b);
@@ -120,7 +128,10 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
   let sessionsCount = 0;
   let currentSessionStart: Date | null = null;
   let lastEventTime: Date | null = null;
-  const projectStats = new Map<string, { pushCount: number; seconds: number; lastActivity: string }>();
+  const projectStats = new Map<
+    string,
+    { pushCount: number; seconds: number; lastActivity: string }
+  >();
   const activeDaysSet = new Set<string>();
 
   for (const event of filteredEvents) {
@@ -129,11 +140,11 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
     const localTime = new Date(eventTime.getTime() + TIMEZONE_OFFSET * 3600 * 1000);
     const dateString = localTime.toISOString().split('T')[0];
     if (dateString) activeDaysSet.add(dateString);
-    
+
     // Calculate Event Estimated Time
     const type = event.type as keyof typeof WEIGHTS;
     const weight = WEIGHTS[type] || 0.5;
-    
+
     // Scaled padding
     let eventDuration = BASE_EVENT_TIME;
     if (type === 'PushEvent') {
@@ -144,27 +155,31 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
       const deletions = event.payload?.pull_request?.deletions || 0;
       eventDuration += (additions + deletions) * 0.5; // +0.5s per line
     }
-    
+
     // Time-of-day Heuristic (Night mode 2am-6am gets 0.5x)
     // Apply timezone offset for correct hour detection
     const localEventTime = new Date(eventTime.getTime() + TIMEZONE_OFFSET * 3600 * 1000);
     const hour = localEventTime.getUTCHours();
     if (hour >= 2 && hour <= 6) {
-        eventDuration *= 0.5;
+      eventDuration *= 0.5;
     }
-    
+
     const weightedEventTime = Math.min(eventDuration * weight, MAX_EVENT_TIME);
 
     const repoName = event.repo.name;
-    const stats = projectStats.get(repoName) || { pushCount: 0, seconds: 0, lastActivity: event.created_at };
-    stats.pushCount += (type === 'PushEvent' ? 1 : 0.2); // Weighted project activity
+    const stats = projectStats.get(repoName) || {
+      pushCount: 0,
+      seconds: 0,
+      lastActivity: event.created_at,
+    };
+    stats.pushCount += type === 'PushEvent' ? 1 : 0.2; // Weighted project activity
     stats.seconds += weightedEventTime;
-    
+
     // Update last activity if this event is more recent
     if (new Date(event.created_at) > new Date(stats.lastActivity)) {
       stats.lastActivity = event.created_at;
     }
-    
+
     projectStats.set(repoName, stats);
 
     if (!currentSessionStart || !lastEventTime) {
@@ -186,9 +201,10 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
       }
     } else {
       // New session
-      const finalSessionDuration = (lastEventTime.getTime() - currentSessionStart.getTime()) / 1000 + weightedEventTime;
+      const finalSessionDuration =
+        (lastEventTime.getTime() - currentSessionStart.getTime()) / 1000 + weightedEventTime;
       totalSeconds += Math.min(finalSessionDuration, MAX_SESSION_SECONDS);
-      
+
       currentSessionStart = eventTime;
       sessionsCount += 1;
     }
@@ -197,7 +213,8 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
 
   // Add the last session
   if (currentSessionStart && lastEventTime) {
-    const finalSessionDuration = (lastEventTime.getTime() - currentSessionStart.getTime()) / 1000 + BASE_EVENT_TIME;
+    const finalSessionDuration =
+      (lastEventTime.getTime() - currentSessionStart.getTime()) / 1000 + BASE_EVENT_TIME;
     totalSeconds += Math.min(finalSessionDuration, MAX_SESSION_SECONDS);
   }
 
@@ -207,7 +224,7 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
   const sortedRepos = Array.from(projectStats.entries())
     .sort(([, a], [, b]) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime())
     .map(([name]) => name);
-    
+
   const repoList = sortedRepos.slice(0, 15); // Increased limit to 15
 
   await Promise.all(
@@ -215,7 +232,7 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
       try {
         const langs = await retryWithBackoff(async (token: string) => {
           const res = await fetch(`${GITHUB_REST_API}/repos/${repoFull}/languages`, {
-            headers: { Authorization: `token ${token}`, 'User-Agent': 'Antigravity-GitHub-Stats' },
+            headers: { Authorization: `token ${token}`, 'User-Agent': 'engineering-overview-pro' },
           });
           if (!res.ok) return {};
           return RepoLanguagesSchema.parse(await res.json());
@@ -237,7 +254,7 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
       const langs = repoLanguages.get(name) || {};
       const sortedLangs = Object.entries(langs).sort(([, a], [, b]) => b - a);
       const primaryLang = sortedLangs[0]?.[0] || 'Unknown';
-      
+
       return {
         fullName: name,
         name: name.split('/')[1] || name,

@@ -32,7 +32,11 @@ export function codingStatsRoute(server: FastifyInstance): void {
 /**
  * Handle the actual logic for both endpoints.
  */
-async function handleRequest(request: FastifyRequest, reply: FastifyReply, isLegacy: boolean): Promise<void> {
+async function handleRequest(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  isLegacy: boolean,
+): Promise<void> {
   // Validate query params
   const parseResult = WakatimeParamsSchema.safeParse(request.query);
 

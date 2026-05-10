@@ -30,12 +30,23 @@ function getRainbowFaceColors(
   // NONE still gets a rainbow tint, just very dark
   let baseLightness: number;
   switch (level) {
-    case 'NONE': baseLightness = 15; break;
-    case 'FIRST_QUARTILE': baseLightness = 28; break;
-    case 'SECOND_QUARTILE': baseLightness = 38; break;
-    case 'THIRD_QUARTILE': baseLightness = 48; break;
-    case 'FOURTH_QUARTILE': baseLightness = 58; break;
-    default: baseLightness = 15;
+    case 'NONE':
+      baseLightness = 15;
+      break;
+    case 'FIRST_QUARTILE':
+      baseLightness = 28;
+      break;
+    case 'SECOND_QUARTILE':
+      baseLightness = 38;
+      break;
+    case 'THIRD_QUARTILE':
+      baseLightness = 48;
+      break;
+    case 'FOURTH_QUARTILE':
+      baseLightness = 58;
+      break;
+    default:
+      baseLightness = 15;
   }
 
   // 3 faces with different lightness to simulate 3D lighting:
@@ -66,14 +77,14 @@ function renderRadarChart(stats: ActivityData['stats'], theme: ThemeConfig): str
   const bgLines: string[] = [];
 
   // Logarithmic scale labels along the top axis
-  const scaleLabels = [1, 10, 100, 1000, 10000].filter(v => v <= maxValue * 2);
+  const scaleLabels = [1, 10, 100, 1000, 10000].filter((v) => v <= maxValue * 2);
   scaleLabels.forEach((val) => {
     const logVal = Math.log10(val + 1);
     const r = (radius * logVal) / logMax;
     if (r > 0 && r <= radius) {
       const label = val >= 1000 ? `${String(val / 1000)}K` : String(val);
       bgLines.push(
-        `<text x="${String(centerX + 4)}" y="${String(centerY - r - 6)}" fill="${theme.muted}" font-size="15" text-anchor="start" font-family="${FONT_FAMILY}" opacity="0.6">${label}</text>`
+        `<text x="${String(centerX + 4)}" y="${String(centerY - r - 6)}" fill="${theme.muted}" font-size="15" text-anchor="start" font-family="${FONT_FAMILY}" opacity="0.6">${label}</text>`,
       );
     }
   });
@@ -84,7 +95,7 @@ function renderRadarChart(stats: ActivityData['stats'], theme: ThemeConfig): str
     const y = centerY + radius * Math.sin(angle);
 
     bgLines.push(
-      `<line x1="${String(centerX)}" y1="${String(centerY)}" x2="${String(x)}" y2="${String(y)}" stroke="${theme.muted}" stroke-width="0.8" opacity="0.5" stroke-dasharray="5,4" />`
+      `<line x1="${String(centerX)}" y1="${String(centerY)}" x2="${String(x)}" y2="${String(y)}" stroke="${theme.muted}" stroke-width="0.8" opacity="0.5" stroke-dasharray="5,4" />`,
     );
 
     const val = values[i] || 0;
@@ -97,18 +108,20 @@ function renderRadarChart(stats: ActivityData['stats'], theme: ThemeConfig): str
     const lx = centerX + (radius + 48) * Math.cos(angle);
     const ly = centerY + (radius + 32) * Math.sin(angle);
     bgLines.push(
-      `<text x="${String(lx)}" y="${String(ly)}" fill="${theme.muted}" font-size="20" font-weight="600" text-anchor="middle" dominant-baseline="middle" font-family="${FONT_FAMILY}">${label}</text>`
+      `<text x="${String(lx)}" y="${String(ly)}" fill="${theme.muted}" font-size="20" font-weight="600" text-anchor="middle" dominant-baseline="middle" font-family="${FONT_FAMILY}">${label}</text>`,
     );
   });
 
   const gridLevels = [0.2, 0.4, 0.6, 0.8, 1];
   gridLevels.forEach((factor) => {
-    const p: string = axes.map((_, i) => {
-      const angle = (Math.PI * 2 * i) / axes.length - Math.PI / 2;
-      return `${String(centerX + radius * factor * Math.cos(angle))},${String(centerY + radius * factor * Math.sin(angle))}`;
-    }).join(' ');
+    const p: string = axes
+      .map((_, i) => {
+        const angle = (Math.PI * 2 * i) / axes.length - Math.PI / 2;
+        return `${String(centerX + radius * factor * Math.cos(angle))},${String(centerY + radius * factor * Math.sin(angle))}`;
+      })
+      .join(' ');
     bgLines.push(
-      `<polygon points="${p}" fill="none" stroke="${theme.muted}" stroke-width="0.8" opacity="0.25" stroke-dasharray="4,4" />`
+      `<polygon points="${p}" fill="none" stroke="${theme.muted}" stroke-width="0.8" opacity="0.25" stroke-dasharray="4,4" />`,
     );
   });
 
@@ -122,10 +135,12 @@ function renderRadarChart(stats: ActivityData['stats'], theme: ThemeConfig): str
       </defs>
       ${bgLines.join('\n')}
       <polygon points="${points.join(' ')}" fill="url(#radarGrad)" stroke="${theme.purple}" stroke-width="2.5" />
-      ${points.map(p => {
-        const [x, y] = p.split(',');
-        return `<circle cx="${String(x)}" cy="${String(y)}" r="5" fill="${theme.purple}" />`;
-      }).join('')}
+      ${points
+        .map((p) => {
+          const [x, y] = p.split(',');
+          return `<circle cx="${String(x)}" cy="${String(y)}" r="5" fill="${theme.purple}" />`;
+        })
+        .join('')}
     </g>
   `;
 }
@@ -275,10 +290,16 @@ export function renderActivityCard(data: ActivityData, options: ActivityCardOpti
   const blocks: Block[] = [];
   data.weeks.forEach((week, col) => {
     week.contributionDays.forEach((day, row) => {
-      blocks.push({ col, row, count: day.contributionCount, level: day.contributionLevel, date: day.date });
+      blocks.push({
+        col,
+        row,
+        count: day.contributionCount,
+        level: day.contributionLevel,
+        date: day.date,
+      });
     });
   });
-  blocks.sort((a, b) => (a.col + a.row) - (b.col + b.row));
+  blocks.sort((a, b) => a.col + a.row - (b.col + b.row));
 
   // Origin placement:
   // The grid must span the full canvas width with the diagonal going

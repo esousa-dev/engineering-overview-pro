@@ -1,101 +1,159 @@
-# Antigravity — GitHub Stats API
+# engineering-overview-pro
 
-API self-hosted que gera cards SVG dinâmicos com estatísticas de qualquer perfil
-do GitHub. Construída em Node.js, Fastify e TypeScript.
+Self-hosted HTTP API that renders **dynamic SVG cards** with GitHub profile statistics. Built with **Node.js**, **Fastify**, and **TypeScript**. Embed the cards in README files, dashboards, or any context that accepts images.
 
-O perfil analisado é **sempre informado pela URL** (`?username=<login>`); basta
-o usuário colocar o próprio login no link e os cards são gerados automaticamente.
+The GitHub profile is **always** selected via the query string (`?username=<login>`). End users put their GitHub username in the URL; the server fetches data from the GitHub API and returns SVG.
 
-## Requisitos
+**Maintainer:** [Esousa97](https://github.com/Esousa97)
 
-- Node.js 22+
-- Um Personal Access Token do GitHub (para evitar o rate limit anônimo)
+## Features
 
-## Setup
+- Read-only API (GET and HEAD only), security headers, global rate limiting, optional trusted reverse proxy support
+- Multiple card types: profile stats, top languages, contribution streak, activity heatmap, pinned repos, DevOps signals, coding activity (WakaTime-style from GitHub events)
+- Theming, locales (`en`, `pt-br`, `es`), and cache-friendly responses
+
+## Requirements
+
+- **Node.js** 22 or newer
+- At least one **GitHub Personal Access Token** (PAT) to avoid unauthenticated rate limits
+
+## Quick start
 
 ```bash
+git clone https://github.com/Esousa97/engineering-overview-pro.git
+cd engineering-overview-pro
 npm install
 cp .env.example .env
-# edite .env e preencha PAT_1 com seu Personal Access Token
+# Edit .env and set PAT_1 to a fine-scoped or classic PAT with repo read access as needed
 npm run dev
 ```
 
-A API sobe em `http://localhost:3000`.
+The server listens on `http://localhost:3000` by default.
 
-## Variáveis de ambiente
+## Environment variables
 
-| Nome      | Obrigatório | Descrição                                  |
-|-----------|-------------|--------------------------------------------|
-| `PAT_1`   | Sim         | GitHub PAT (pode adicionar `PAT_2`, `PAT_3`… para round-robin) |
-| `PORT`    | Não         | Porta HTTP (padrão `3000`)                 |
-| `HOST`    | Não         | Host de bind (padrão `0.0.0.0`)            |
-| `LOG_LEVEL` | Não       | Nível do logger Fastify (padrão `info`)    |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `PAT_1` | Yes | GitHub PAT. You may define `PAT_2`, `PAT_3`, … for round-robin rotation. |
+| `PORT` | No | HTTP port (default `3000`). |
+| `HOST` | No | Bind address (default `0.0.0.0`). |
+| `LOG_LEVEL` | No | Fastify logger level (default `info`). |
+| `TRUST_PROXY` | No | When behind Nginx, Traefik, or similar, set to `true` or a comma-separated allow list so rate limiting uses the real client IP. **Do not** enable if the app is exposed directly to the internet without a trusted proxy (clients could spoof `X-Forwarded-For`). Default `false`. |
 
-Não há variável de username — o login do GitHub vem **sempre** pela querystring.
+There is **no** default GitHub username in configuration; every card URL must include `username`.
 
-## Rotas
+## API overview
 
-Todas as rotas de card aceitam o parâmetro obrigatório `username`.
+All card routes require `username` (valid GitHub login). Responses are `image/svg+xml` unless noted.
 
-| Rota               | Função                                |
-|--------------------|---------------------------------------|
-| `GET /`            | Status da API e lista de rotas        |
-| `GET /health`      | Healthcheck (uptime, memória, cache, rate limit) |
-| `GET /api/stats`   | Card de estatísticas do perfil        |
-| `GET /api/top-langs` | Linguagens mais usadas              |
-| `GET /api/streak`  | Streak de contribuições               |
-| `GET /api/activity` | Heatmap de atividade                 |
-| `GET /api/pin`     | Repositórios fixados                  |
-| `GET /api/devops`  | CI/CD + CodeFactor + Security         |
-| `GET /api/wakatime` | Estatísticas do WakaTime             |
+| Route | Description |
+|-------|-------------|
+| `GET /` | JSON: service message, health URL, and route list |
+| `GET /health` | JSON: uptime, memory, cache size, GitHub rate-limit snapshot |
+| `GET /api/stats` | Profile statistics card |
+| `GET /api/top-langs` | Most-used languages |
+| `GET /api/streak` | Contribution streak |
+| `GET /api/activity` | Activity heatmap |
+| `GET /api/pin` | Pinned repositories (grid) or a single repo with `repo` |
+| `GET /api/devops` | CI/CD, CodeFactor, and security-related signals |
+| `GET /api/coding-stats` | Coding-style stats derived from public GitHub activity |
+| `GET /api/wakatime` | **Legacy alias** for `/api/coding-stats` |
 
-### Exemplo de uso no README
+### Example: README badge
 
 ```markdown
-[![GitHub Stats](https://seu-dominio.com/api/stats?username=SEU_LOGIN)](https://github.com/SEU_LOGIN)
+[![GitHub Stats](https://your-domain.com/api/stats?username=YOUR_LOGIN)](https://github.com/YOUR_LOGIN)
 ```
 
-### Parâmetros comuns (`/api/stats`)
+### Common query parameters (`/api/stats` and shared base)
 
-- `username` (obrigatório): login do GitHub.
-- `theme` (opcional): nome de um tema de `src/themes/index.ts` (padrão `dracula-black`).
-- `hide_title`, `hide_border`, `hide_rank` (boolean): ocultam partes do card.
-- `bg_color`, `text_color`, `title_color`, `icon_color`, `border_color`: hex sem `#`.
-- `locale`: `en`, `pt-br` ou `es`.
-- `disable_animations` (boolean).
-- `hide` / `show`: lista separada por vírgula entre `stars,commits,prs,issues,contribs`.
-- `custom_title`: título customizado.
+- `username` (required): GitHub login.
+- `theme`: theme id from `src/themes/index.ts` (default `dracula-black`).
+- `hide_title`, `hide_border`, `hide_rank`: boolean flags.
+- `bg_color`, `text_color`, `title_color`, `icon_color`, `border_color`: hex **without** `#`.
+- `locale`: `en`, `pt-br`, or `es`.
+- `disable_animations`: boolean.
+- `hide` / `show`: comma-separated among `stars`, `commits`, `prs`, `issues`, `contribs` (stats endpoint).
+- `custom_title`: override card title.
+- `cache_seconds`: client cache hint (allowed range enforced by validation; default aligns with CDN-friendly caching).
 
-## Scripts
+Endpoint-specific options (layouts, `langs_count`, pin `repo`, DevOps toggles, and coding-stats layout) are validated in `src/common/validators.ts`.
 
-| Script | Descrição |
-|--------|-----------|
-| `npm run dev`       | Servidor em watch (tsx) |
-| `npm run build`     | Compila para `dist/`    |
-| `npm start`         | Roda `dist/server.js`   |
-| `npm test`          | Testes (vitest)         |
-| `npm run lint`      | ESLint                  |
-| `npm run typecheck` | TypeScript sem emitir   |
-| `npm run format`    | Prettier                |
-| `npm run spell`     | cspell                  |
+## npm scripts
 
-## Deploy na VPS via GitHub
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Development server with watch (`tsx`) |
+| `npm run build` | Compile to `dist/` |
+| `npm start` | Run `dist/server.js` (loads `.env` when present) |
+| `npm test` | Unit tests (Vitest) |
+| `npm run test:coverage` | Vitest with V8 coverage report (no global gate; useful locally or in custom pipelines) |
+| `npm run verify` | Same checks as CI: Prettier, ESLint, TypeScript, spell (docs + GraphQL), tests, build, `npm audit` |
+| `npm run lint` | ESLint on `src/` |
+| `npm run typecheck` | TypeScript check without emit |
+| `npm run format` | Prettier write on `src/**/*.ts` and `tests/**/*.ts` |
+| `npm run format:check` | Prettier check (CI) |
+| `npm run spell` | cspell on the full tree (local) |
+| `npm run spell:ci` | cspell on documentation and `src/graphql/` only (CI) |
 
-O projeto é puro Node.js — nenhum container ou pipeline externo é necessário.
-Fluxo recomendado na VPS:
+## Production deployment
+
+The application is a standard Node.js service: no Docker is required, though you may containerize it if you prefer.
+
+Example on a VPS:
 
 ```bash
-git clone <seu-repo>
+git clone https://github.com/Esousa97/engineering-overview-pro.git
 cd engineering-overview-pro
 npm ci
 npm run build
-cp .env.example .env  # preencha PAT_1
-node dist/server.js   # ou via systemd / pm2
+cp .env.example .env
+# Set PAT_1 (and optional PAT_n), PORT, TRUST_PROXY as needed
+node dist/server.js
 ```
 
-Para atualizações posteriores: `git pull && npm ci && npm run build` e reinicie
-o serviço.
+Use **systemd**, **pm2**, or a process supervisor for restarts and logging. Place **Nginx** or another reverse proxy in front for TLS and optional `TRUST_PROXY=true`.
 
-## Licença
+Updates:
 
-MIT
+```bash
+git pull
+npm ci
+npm run build
+# Restart the process
+```
+
+### Operational notes
+
+- Keep PATs scoped to the minimum GitHub permissions you need.
+- Monitor `/health` for rate-limit headroom when traffic grows.
+- Tune `TRUST_PROXY` only when a trusted proxy terminates TLS and sets forwarding headers correctly.
+
+## CI/CD and automation
+
+- **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): on every push and pull request to `main` / `dev`, runs Prettier check, ESLint, TypeScript, spell check (documentation plus [`src/graphql/github-queries.ts`](src/graphql/github-queries.ts)), Vitest (including GraphQL syntax validation), production build, and `npm audit`.
+- **Dependency review**: pull requests also run [Dependency review](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review) for high-severity issues in the dependency graph.
+- **Dependabot** ([`.github/dependabot.yml`](.github/dependabot.yml)): weekly grouped npm updates (Octokit, Fastify, TypeScript/Vitest clusters) and monthly GitHub Actions updates.
+- **Releases** ([`.github/workflows/release.yml`](.github/workflows/release.yml)): pushing a version tag matching `v*` (for example `v1.0.1`) runs the same checks, creates a **GitHub Release** with auto-generated notes, and optionally publishes to **npm** when you set repository variable `NPM_PUBLISH` to `true` and configure the `NPM_TOKEN` secret (otherwise the publish job is skipped).
+
+Local parity with CI:
+
+```bash
+npm run verify
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+
+## Code of conduct
+
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+## License
+
+MIT — see [LICENSE](LICENSE).

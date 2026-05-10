@@ -124,7 +124,7 @@ export async function getRateLimitStatus(): Promise<ReadonlyArray<TokenState>> {
       const response = await fetch('https://api.github.com/rate_limit', {
         headers: {
           authorization: `Bearer ${token}`,
-          'user-agent': 'Antigravity-GitHub-Stats',
+          'user-agent': 'engineering-overview-pro',
         },
       });
 

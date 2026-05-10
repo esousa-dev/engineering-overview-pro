@@ -39,7 +39,9 @@ function renderChip(
   delay: number,
   disableAnimations: boolean,
 ): string {
-  const stagger = disableAnimations ? '' : `opacity:0;animation:fadeSlideIn 0.5s ease ${String(delay)}ms forwards;`;
+  const stagger = disableAnimations
+    ? ''
+    : `opacity:0;animation:fadeSlideIn 0.5s ease ${String(delay)}ms forwards;`;
   return `
     <g style="${stagger}">
       <rect x="${String(x)}" y="${String(y)}" width="${String(width)}" height="38" rx="6"
@@ -62,13 +64,15 @@ function renderLanguageBar(
   delay: number,
   disableAnimations: boolean,
 ): string {
-  const stagger = disableAnimations ? '' : `opacity:0;animation:fadeSlideIn 0.5s ease ${String(delay)}ms forwards;`;
+  const stagger = disableAnimations
+    ? ''
+    : `opacity:0;animation:fadeSlideIn 0.5s ease ${String(delay)}ms forwards;`;
 
   // 1. Normalize percentages to 100% total
   const totalPercent = languages.reduce((acc, l) => acc + l.percent, 0);
-  const normalizedLangs = languages.map(l => ({
+  const normalizedLangs = languages.map((l) => ({
     ...l,
-    normalizedPercent: totalPercent > 0 ? (l.percent / totalPercent) * 100 : 0
+    normalizedPercent: totalPercent > 0 ? (l.percent / totalPercent) * 100 : 0,
   }));
 
   // 2. Build segments and pre-calculate centers for labels
@@ -82,20 +86,22 @@ function renderLanguageBar(
   });
 
   // 3. Render segments
-  const segments = layout.map(l => l.segment).join('');
+  const segments = layout.map((l) => l.segment).join('');
 
   // 4. Render rotated legends
-  const legends = layout.map((l) => {
-    // We position the label under the segment center
-    // and rotate it 45 degrees.
-    return `
+  const legends = layout
+    .map((l) => {
+      // We position the label under the segment center
+      // and rotate it 45 degrees.
+      return `
       <g transform="translate(${String(l.center)}, 12) rotate(45)">
         <circle cx="0" cy="0" r="3.5" fill="${l.color}"/>
         <text x="8" y="4" fill="${COLOR.text}" font-family="${FONT_FAMILY}" font-size="10.5" font-weight="600">${escapeXml(l.name)}</text>
         <text x="8" y="15" fill="${COLOR.label}" font-family="${FONT_FAMILY}" font-size="9">${l.percent.toFixed(1)}%</text>
       </g>
     `;
-  }).join('');
+    })
+    .join('');
 
   return `
     <g transform="translate(${String(x)}, ${String(y)})" style="${stagger}">
@@ -120,7 +126,9 @@ function renderProjectRow(
   delay: number,
   disableAnimations: boolean,
 ): string {
-  const stagger = disableAnimations ? '' : `opacity:0;animation:fadeSlideIn 0.5s ease ${String(delay)}ms forwards;`;
+  const stagger = disableAnimations
+    ? ''
+    : `opacity:0;animation:fadeSlideIn 0.5s ease ${String(delay)}ms forwards;`;
   const hasZebraBg = index % 2 === 0;
   const bgRect = hasZebraBg
     ? `<rect x="-8" y="0" width="${String(maxWidth + paddingX)}" height="24" rx="4" fill="${COLOR.rowBg}" opacity="0.5"/>`
@@ -186,9 +194,33 @@ export function renderCodingStatsCard(
 
   const chips = [
     renderChip(PADDING_X, chipY, c1w, 'TOTAL TIME', formatDuration(data.totalSeconds), 0, true),
-    renderChip(PADDING_X + c1w + gap, chipY, c2w, 'DAILY AVG', formatDuration(data.dailyAverageSeconds), 0, true),
-    renderChip(PADDING_X + c1w + c2w + gap * 2, chipY, c3w, 'SESSIONS', String(data.sessions), 0, true),
-    renderChip(PADDING_X + c1w + c2w + c3w + gap * 3, chipY, c4w, 'DAYS', String(data.activeDays), 0, true),
+    renderChip(
+      PADDING_X + c1w + gap,
+      chipY,
+      c2w,
+      'DAILY AVG',
+      formatDuration(data.dailyAverageSeconds),
+      0,
+      true,
+    ),
+    renderChip(
+      PADDING_X + c1w + c2w + gap * 2,
+      chipY,
+      c3w,
+      'SESSIONS',
+      String(data.sessions),
+      0,
+      true,
+    ),
+    renderChip(
+      PADDING_X + c1w + c2w + c3w + gap * 3,
+      chipY,
+      c4w,
+      'DAYS',
+      String(data.activeDays),
+      0,
+      true,
+    ),
   ].join('');
 
   cursorY += 38 + 20; // Height + Gap
@@ -198,26 +230,29 @@ export function renderCodingStatsCard(
   cursorY += 15;
 
   // ── Language Bar ───────────────────────────────────────────
-  const langBar = topLangs.length > 0
-    ? renderLanguageBar(topLangs, CONTENT_WIDTH, PADDING_X, cursorY, 0, true)
-    : '';
+  const langBar =
+    topLangs.length > 0
+      ? renderLanguageBar(topLangs, CONTENT_WIDTH, PADDING_X, cursorY, 0, true)
+      : '';
 
   // Space for rotated legends (approx 65-75px depending on string length)
   cursorY += topLangs.length > 0 ? 80 : 0;
 
   // ── Divider 2 ──────────────────────────────────────────────
-  const divider2 = topProjects.length > 0
-    ? `<line x1="${String(PADDING_X)}" y1="${String(cursorY)}" x2="${String(CARD_WIDTH - PADDING_X)}" y2="${String(cursorY)}" stroke="${COLOR.divider}" stroke-width="1"/>`
-    : '';
+  const divider2 =
+    topProjects.length > 0
+      ? `<line x1="${String(PADDING_X)}" y1="${String(cursorY)}" x2="${String(CARD_WIDTH - PADDING_X)}" y2="${String(cursorY)}" stroke="${COLOR.divider}" stroke-width="1"/>`
+      : '';
   cursorY += topProjects.length > 0 ? 18 : 0;
 
   // ── Projects Header ────────────────────────────────────────
-  const projectsHeader = topProjects.length > 0
-    ? `<g transform="translate(${String(PADDING_X)}, ${String(cursorY)})">
+  const projectsHeader =
+    topProjects.length > 0
+      ? `<g transform="translate(${String(PADDING_X)}, ${String(cursorY)})">
         <text x="0" y="0" fill="${COLOR.label}" font-family="${FONT_FAMILY}" font-size="9" font-weight="600" letter-spacing="0.5">TOP PROJECTS</text>
         <text x="${String(CONTENT_WIDTH)}" y="0" fill="${COLOR.label}" font-family="${FONT_FAMILY}" font-size="9" font-weight="600" letter-spacing="0.5" text-anchor="end">TIME</text>
       </g>`
-    : '';
+      : '';
 
   cursorY += topProjects.length > 0 ? 18 : 0;
 
@@ -227,21 +262,12 @@ export function renderCodingStatsCard(
     .map((project, i) => {
       const color = project.color;
       const rowY = cursorY + i * ROW_HEIGHT;
-      return renderProjectRow(
-        project,
-        i,
-        rowY,
-        CONTENT_WIDTH,
-        color,
-        PADDING_X,
-        0,
-        true,
-      );
+      return renderProjectRow(project, i, rowY, CONTENT_WIDTH, color, PADDING_X, 0, true);
     })
     .join('');
 
   // ── Adjust project row render to not use transform for the row itself ────────────────
-  // Need to fix renderProjectRow to accept absolute X/Y instead of transform if needed, 
+  // Need to fix renderProjectRow to accept absolute X/Y instead of transform if needed,
   // but let's try with fixed transform first.
 
   cursorY += topProjects.length * ROW_HEIGHT + 10;
@@ -258,21 +284,30 @@ export function renderCodingStatsCard(
   cursorY += 20;
 
   // ── Assemble ───────────────────────────────────────────────
-  const body = [header, chips, divider1, langBar, divider2, projectsHeader, projectRows, footer].join('\n');
+  const body = [
+    header,
+    chips,
+    divider1,
+    langBar,
+    divider2,
+    projectsHeader,
+    projectRows,
+    footer,
+  ].join('\n');
 
   // When calculating final height, we must account for the 30px offset from renderBaseCard
   // and minimize the padding after the footer.
-  const finalHeight = cursorY + 15; 
+  const finalHeight = cursorY + 15;
 
   return renderBaseCard({
     body,
-    options: { 
-      ...options, 
+    options: {
+      ...options,
       hideTitle: true,
       width: CARD_WIDTH,
-      height: finalHeight
+      height: finalHeight,
     },
-    title: '', 
+    title: '',
     description: 'Coding stats estimated from GitHub activity',
   });
 }

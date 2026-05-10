@@ -4,7 +4,9 @@ import { escapeXml, isValidHex, toHexColor } from '../../src/common/utils.js';
 describe('utils', () => {
   describe('escapeXml', () => {
     it('should escape xml special characters', () => {
-      expect(escapeXml('<foo & "bar" \'baz\'>')).toBe('&lt;foo &amp; &quot;bar&quot; &apos;baz&apos;&gt;');
+      expect(escapeXml('<foo & "bar" \'baz\'>')).toBe(
+        '&lt;foo &amp; &quot;bar&quot; &apos;baz&apos;&gt;',
+      );
     });
   });
 

@@ -1,5 +1,5 @@
 // ============================================================
-// Antigravity — GitHub Stats Cards
+// engineering-overview-pro — GitHub stats card types
 // Central type definitions (single source of truth)
 // ============================================================
 

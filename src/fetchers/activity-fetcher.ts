@@ -1,6 +1,7 @@
 import { graphql } from '@octokit/graphql';
 import { z } from 'zod';
 import { retryWithBackoff } from '../common/retryer.js';
+import { ACTIVITY_MAIN_QUERY, ACTIVITY_PAGINATION_QUERY } from '../graphql/github-queries.js';
 import type { ActivityData, ContributionLevel } from '../types/index.js';
 
 /**
@@ -67,48 +68,7 @@ const PaginationResponseSchema = z.object({
  * by calling `fetchTopLanguages` separately, reusing the same pipeline
  * that powers the Top Languages card.
  */
-export async function fetchActivity(
-  username: string,
-): Promise<Omit<ActivityData, 'languages'>> {
-  const MAIN_QUERY = `
-    query activityStats($login: String!, $after: String) {
-      user(login: $login) {
-        contributionsCollection {
-          contributionCalendar {
-            totalContributions
-            weeks {
-              contributionDays {
-                contributionCount
-                contributionLevel
-                date
-              }
-            }
-          }
-          totalCommitContributions
-          totalIssueContributions
-          totalPullRequestContributions
-          totalPullRequestReviewContributions
-          totalRepositoriesWithContributedCommits
-        }
-        repositories(first: 100, ownerAffiliations: OWNER, isFork: false, after: $after, orderBy: {field: STARGAZERS, direction: DESC}) {
-          pageInfo { hasNextPage endCursor }
-          nodes { isFork isArchived stargazerCount forkCount }
-        }
-      }
-    }
-  `;
-
-  const PAGINATION_QUERY = `
-    query repoPagination($login: String!, $after: String) {
-      user(login: $login) {
-        repositories(first: 100, ownerAffiliations: OWNER, isFork: false, after: $after, orderBy: {field: STARGAZERS, direction: DESC}) {
-          pageInfo { hasNextPage endCursor }
-          nodes { isFork isArchived stargazerCount forkCount }
-        }
-      }
-    }
-  `;
-
+export async function fetchActivity(username: string): Promise<Omit<ActivityData, 'languages'>> {
   let calendar: ActivityData['weeks'] = [];
   let totalContribs = 0;
   let stats = { commits: 0, issues: 0, pullRequests: 0, reviews: 0, repos: 0 };
@@ -123,11 +83,14 @@ export async function fetchActivity(
     const isFirstPage = pageCount === 0;
 
     const data = await retryWithBackoff(async (token: string) => {
-      const response: unknown = await graphql(isFirstPage ? MAIN_QUERY : PAGINATION_QUERY, {
-        login: username,
-        after: cursor,
-        headers: { authorization: `Bearer ${token}` },
-      });
+      const response: unknown = await graphql(
+        isFirstPage ? ACTIVITY_MAIN_QUERY : ACTIVITY_PAGINATION_QUERY,
+        {
+          login: username,
+          after: cursor,
+          headers: { authorization: `Bearer ${token}` },
+        },
+      );
 
       return isFirstPage
         ? ActivityResponseSchema.parse(response)

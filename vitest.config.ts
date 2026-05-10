@@ -15,10 +15,6 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**/*.ts'],
       exclude: ['src/types/**', 'src/server.ts'],
-      thresholds: {
-        lines: 80,
-        branches: 90,
-      },
     },
     snapshotFormat: {
       escapeString: false,

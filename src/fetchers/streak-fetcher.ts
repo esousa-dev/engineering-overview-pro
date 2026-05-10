@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { retryWithBackoff } from '../common/retryer.js';
 import { cacheManager } from '../common/cache.js';
+import { STREAK_QUERY } from '../graphql/github-queries.js';
 import { formatISO, subYears, startOfDay, parseISO } from 'date-fns';
 
 export interface StreakStats {
@@ -48,25 +49,6 @@ const UserContributionSchema = z.object({
     contributionsCollection: ContributionsCollectionSchema,
   }),
 });
-
-const STREAK_QUERY = `
-  query userInfo($login: String!, $from: DateTime!, $to: DateTime!) {
-    user(login: $login) {
-      createdAt
-      contributionsCollection(from: $from, to: $to) {
-        contributionCalendar {
-          totalContributions
-          weeks {
-            contributionDays {
-              date
-              contributionCount
-            }
-          }
-        }
-      }
-    }
-  }
-`;
 
 // --- Fetcher Options ---
 
@@ -186,21 +168,21 @@ export async function fetchStreakStats(
 
   // 1. Fetch current year first to establish user creation date
   const now = new Date();
-  
+
   const initialData = await retryWithBackoff(async (token: string) => {
-    const rawData = (await graphql(STREAK_QUERY, {
+    const rawData = await graphql(STREAK_QUERY, {
       login: username,
       from: formatISO(subYears(now, 1)),
       to: formatISO(now),
       headers: { authorization: `Bearer ${token}` },
-    }));
+    });
     return UserContributionSchema.parse(rawData);
   });
 
   const createdAt = parseISO(initialData.user.createdAt);
   const startYear = createdAt.getFullYear();
   const currentYear = now.getFullYear();
-  
+
   const allContributionDays: { date: string; count: number }[] = [];
 
   // 2. Fetch all years asynchronously, storing promises to run concurrently
@@ -219,14 +201,14 @@ export async function fetchStreakStats(
 
     fetchPromises.push(
       retryWithBackoff(async (token: string) => {
-        const rawData = (await graphql(STREAK_QUERY, {
+        const rawData = await graphql(STREAK_QUERY, {
           login: username,
           from: formatISO(fromDate),
           to: formatISO(toDate),
           headers: { authorization: `Bearer ${token}` },
-        }));
+        });
         return UserContributionSchema.parse(rawData);
-      })
+      }),
     );
   }
 
@@ -249,7 +231,7 @@ export async function fetchStreakStats(
   for (const day of allContributionDays) {
     uniqueDaysMap.set(day.date, day.count);
   }
-  
+
   const sortedDays = Array.from(uniqueDaysMap.entries())
     .map(([date, count]) => ({ date, count }))
     .sort((a, b) => a.date.localeCompare(b.date));

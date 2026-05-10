@@ -15,7 +15,20 @@ export interface StreakCardOptions extends CardOptions {
   readonly hideLongestStreak?: boolean;
 }
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+const MONTH_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
 
 /**
  * Format a YYYY-MM-DD string into a short readable date.
@@ -55,7 +68,7 @@ export function renderStreakCard(stats: StreakStats, options: StreakCardOptions)
   let activeCols = 1;
   if (!options.hideCurrentStreak) activeCols++;
   if (!options.hideLongestStreak) activeCols++;
-  
+
   const colWidth = CARD_WIDTH / activeCols;
 
   const addDivider = (x: number): void => {
@@ -71,14 +84,14 @@ export function renderStreakCard(stats: StreakStats, options: StreakCardOptions)
     value: string,
     label: string,
     dateRange: string,
-    isCenter: boolean = false
-  ) => {
+    isCenter: boolean = false,
+  ): string => {
     const delay = (index + 1) * 150;
     const stagger = disableAnimations ? '' : `animation-delay: ${String(delay)}ms;`;
     const cx = colWidth * index + colWidth / 2;
 
     // Y coordinates matching the image
-    const iconY = 5; 
+    const iconY = 5;
     const valueY = 65;
     const labelY = isCenter ? 120 : 105;
     const dateY = isCenter ? 140 : 125;
@@ -90,10 +103,12 @@ export function renderStreakCard(stats: StreakStats, options: StreakCardOptions)
     const dash = C - gap;
     const offset = -gap / 2;
 
-    const ringSvg = isCenter ? `
+    const ringSvg = isCenter
+      ? `
       <!-- Prominent Ring -->
       <circle cx="0" cy="55" r="${String(R)}" fill="none" stroke="${theme.icon}" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="${String(dash)} ${String(gap)}" stroke-dashoffset="${String(offset)}" transform="rotate(-90 0 55)" opacity="0.8" />
-    ` : '';
+    `
+      : '';
 
     return `
       <g transform="translate(${String(cx)}, 10)">
@@ -137,40 +152,46 @@ export function renderStreakCard(stats: StreakStats, options: StreakCardOptions)
   };
 
   // 1. Total Contributions
-  columns.push(renderColumn(
-    colIndex++,
-    iconContributions(theme.icon),
-    theme.icon,
-    formatNumber(stats.totalContributions),
-    t('streak.total', locale),
-    `${formatShortDate(stats.firstContribution, locale)} - Present`
-  ));
+  columns.push(
+    renderColumn(
+      colIndex++,
+      iconContributions(theme.icon),
+      theme.icon,
+      formatNumber(stats.totalContributions),
+      t('streak.total', locale),
+      `${formatShortDate(stats.firstContribution, locale)} - Present`,
+    ),
+  );
 
   // 2. Current Streak
   if (!options.hideCurrentStreak) {
     addDivider(colWidth * colIndex);
-    columns.push(renderColumn(
-      colIndex++,
-      iconFire(theme.orange),
-      theme.orange,
-      formatNumber(stats.currentStreak.length),
-      t('streak.current', locale),
-      `${formatShortDate(stats.currentStreak.start, locale)} - ${formatShortDate(stats.currentStreak.end, locale)}`,
-      true // isCenter
-    ));
+    columns.push(
+      renderColumn(
+        colIndex++,
+        iconFire(theme.orange),
+        theme.orange,
+        formatNumber(stats.currentStreak.length),
+        t('streak.current', locale),
+        `${formatShortDate(stats.currentStreak.start, locale)} - ${formatShortDate(stats.currentStreak.end, locale)}`,
+        true, // isCenter
+      ),
+    );
   }
 
   // 3. Longest Streak
   if (!options.hideLongestStreak) {
     addDivider(colWidth * colIndex);
-    columns.push(renderColumn(
-      colIndex++,
-      iconStar(theme.yellow),
-      theme.yellow,
-      formatNumber(stats.longestStreak.length),
-      t('streak.longest', locale),
-      `${formatShortDate(stats.longestStreak.start, locale)} - ${formatShortDate(stats.longestStreak.end, locale)}`
-    ));
+    columns.push(
+      renderColumn(
+        colIndex++,
+        iconStar(theme.yellow),
+        theme.yellow,
+        formatNumber(stats.longestStreak.length),
+        t('streak.longest', locale),
+        `${formatShortDate(stats.longestStreak.start, locale)} - ${formatShortDate(stats.longestStreak.end, locale)}`,
+      ),
+    );
   }
 
   const body = `

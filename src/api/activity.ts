@@ -18,12 +18,9 @@ export function activityRoute(server: FastifyInstance, _opts: unknown, done: () 
     const parseResult = ActivityParamsSchema.safeParse(request.query);
 
     if (!parseResult.success) {
-       const errorSvg = renderErrorCard(
-         'Invalid query parameters',
-         resolveTheme('dracula-black')
-       );
-       void reply.header('Content-Type', 'image/svg+xml; charset=utf-8').send(errorSvg);
-       return;
+      const errorSvg = renderErrorCard('Invalid query parameters', resolveTheme('dracula-black'));
+      void reply.header('Content-Type', 'image/svg+xml; charset=utf-8').send(errorSvg);
+      return;
     }
 
     const params = parseResult.data;
@@ -89,6 +86,6 @@ export function activityRoute(server: FastifyInstance, _opts: unknown, done: () 
         .send(renderErrorCard(sanitizeUserError(err), theme));
     }
   });
-  
+
   done();
 }

@@ -28,10 +28,7 @@ export function pinRoute(server: FastifyInstance, _opts: unknown, done: () => vo
     if (!result.success) {
       const theme = resolveTheme(query['theme'] ?? 'dracula-black', {});
       const message = result.error.errors.map((e) => e.message).join(', ');
-      return await reply
-        .status(200)
-        .type('image/svg+xml')
-        .send(renderErrorCard(message, theme));
+      return await reply.status(200).type('image/svg+xml').send(renderErrorCard(message, theme));
     }
 
     const params = result.data;

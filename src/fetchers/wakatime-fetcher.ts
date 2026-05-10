@@ -27,10 +27,13 @@ const WakatimeStatsSchema = z.object({
     editors: z.array(WakatimeEditorSchema).optional(),
     total_seconds: z.number(),
     daily_average: z.number(),
-    best_day: z.object({
-      date: z.string(),
-      total_seconds: z.number(),
-    }).nullable().optional(),
+    best_day: z
+      .object({
+        date: z.string(),
+        total_seconds: z.number(),
+      })
+      .nullable()
+      .optional(),
   }),
 });
 
@@ -60,7 +63,9 @@ export async function fetchWakatimeStats(username: string): Promise<WakaTimeData
   const url = `${WAKATIME_API_URL}/${encodeURIComponent(effectiveUsername)}/stats/last_7_days`;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => { controller.abort(); }, 10_000);
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 10_000);
   let response: Response;
   try {
     response = await fetch(url, { headers, signal: controller.signal });
