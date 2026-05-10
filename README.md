@@ -6,7 +6,6 @@
 
 <p align="center">
   <a href="https://github.com/esousa-dev/engineering-overview-pro/actions/workflows/ci.yml"><img src="https://github.com/esousa-dev/engineering-overview-pro/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status" /></a>
-  <a href="https://github.com/esousa-dev/engineering-overview-pro/actions/workflows/release.yml"><img src="https://github.com/esousa-dev/engineering-overview-pro/actions/workflows/release.yml/badge.svg" alt="Release workflow" /></a>
   <a href="https://github.com/esousa-dev/engineering-overview-pro/commits/main/"><img src="https://img.shields.io/github/last-commit/esousa-dev/engineering-overview-pro?logo=github&amp;label=last%20commit" alt="Last commit" /></a>
   <a href="https://github.com/esousa-dev/engineering-overview-pro/graphs/commit-activity"><img src="https://img.shields.io/github/commit-activity/m/esousa-dev/engineering-overview-pro?label=commits%2Fmonth&amp;logo=github" alt="Commit activity" /></a>
   <a href="https://github.com/esousa-dev/engineering-overview-pro/blob/main/LICENSE"><img src="https://img.shields.io/github/license/esousa-dev/engineering-overview-pro?color=blue&amp;label=license" alt="License" /></a>
@@ -28,13 +27,11 @@
   <a href="https://github.com/esousa-dev/engineering-overview-pro/blob/main/.github/dependabot.yml"><img src="https://img.shields.io/badge/Dependabot-enabled-025e8c?logo=dependabot&amp;logoColor=white" alt="Dependabot" /></a>
   <a href="https://github.com/esousa-dev/engineering-overview-pro/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/npm_audit-passing-brightgreen?logo=npm&amp;logoColor=white" alt="npm audit passing" /></a>
   <a href="https://github.com/esousa-dev/engineering-overview-pro/blob/main/package.json"><img src="https://img.shields.io/github/package-json/dependency-version/esousa-dev/engineering-overview-pro/dev/typescript?branch=main&amp;label=typescript%20%28dev%29" alt="TypeScript devDependency version" /></a>
-  <a href="https://github.com/esousa-dev/engineering-overview-pro/releases"><img src="https://img.shields.io/github/v/release/esousa-dev/engineering-overview-pro?sort=semver&amp;logo=github&amp;label=release" alt="GitHub release" /></a>
   <a href="https://github.com/esousa-dev/engineering-overview-pro/actions/workflows/release.yml"><img src="https://img.shields.io/badge/npm_publish-optional-CB3837?logo=npm&amp;logoColor=white" alt="npm publish optional" /></a>
 </p>
 
 <p align="center">
   <a href="https://www.codefactor.io/repository/github/esousa-dev/engineering-overview-pro"><img src="https://www.codefactor.io/repository/github/esousa-dev/engineering-overview-pro/badge/main" alt="CodeFactor" /></a>
-  <a href="https://scorecard.dev/viewer/?uri=github.com/esousa-dev/engineering-overview-pro"><img src="https://api.scorecard.dev/projects/github.com/esousa-dev/engineering-overview-pro/badge" alt="OpenSSF Scorecard" /></a>
   <a href="https://github.com/esousa-dev/engineering-overview-pro/pulse"><img src="https://img.shields.io/github/issues/esousa-dev/engineering-overview-pro?logo=github&amp;label=issues" alt="GitHub issues" /></a>
   <a href="https://github.com/esousa-dev/engineering-overview-pro/pulls"><img src="https://img.shields.io/github/issues-pr/esousa-dev/engineering-overview-pro?logo=github&amp;label=pull%20requests" alt="GitHub pull requests" /></a>
   <a href="https://github.com/esousa-dev/engineering-overview-pro"><img src="https://img.shields.io/github/stars/esousa-dev/engineering-overview-pro?style=social" alt="GitHub stars" /></a>
