@@ -39,121 +39,137 @@
 
 ---
 
-Self-hosted HTTP API that renders **dynamic SVG cards** with GitHub profile statistics. Built with **Node.js**, **Fastify**, and **TypeScript**. Embed the cards in README files, dashboards, or any context that accepts images.
+A free, public **SVG card service** for GitHub profiles. Embed dynamic stats, language breakdowns, contribution streaks, activity heatmaps, pinned repositories, DevOps signals, and coding activity directly in your README — no sign-up, no install, just a URL.
 
-The GitHub profile is **always** selected via the query string (`?username=<login>`). End users put their GitHub username in the URL; the server fetches data from the GitHub API and returns SVG.
+> 🌐 **Live at [`https://esousa97.com`](https://esousa97.com)** — open and free for community use. Built with **Node.js**, **Fastify**, and **TypeScript**. MIT-licensed; you can also self-host.
 
-**Maintainer:** [ESousa97](https://github.com/esousa97)
+**Maintainer:** [ESousa97](https://github.com/ESousa97)
 
-## Features
+## Quickstart — embed a card in 1 line
 
-- Read-only API (GET and HEAD only), security headers, global rate limiting, optional trusted reverse proxy support
-- Multiple card types: profile stats, top languages, contribution streak, activity heatmap, pinned repos, DevOps signals, coding activity (WakaTime-style from GitHub events)
-- Theming, locales (`en`, `pt-br`, `es`), and cache-friendly responses
+Drop this into your `README.md`, replacing `YOUR_LOGIN` with your GitHub username:
 
-## Requirements
+```markdown
+![](https://esousa97.com/api/stats?username=YOUR_LOGIN)
+```
+
+That's it. The service fetches your public GitHub data and returns an SVG, which any markdown-aware renderer (GitHub, GitLab, dashboards, blog posts) embeds inline.
+
+### A profile-ready combo
+
+```markdown
+![Stats](https://esousa97.com/api/stats?username=YOUR_LOGIN)
+![Top languages](https://esousa97.com/api/top-langs?username=YOUR_LOGIN&layout=donut)
+![Streak](https://esousa97.com/api/streak?username=YOUR_LOGIN)
+![Activity](https://esousa97.com/api/activity?username=YOUR_LOGIN)
+```
+
+## Available cards
+
+All endpoints require `?username=<github-login>` and return `image/svg+xml`.
+
+| Endpoint | What it shows |
+|---|---|
+| `/api/stats` | Profile statistics — commits, PRs, issues, stars, contributions, rank |
+| `/api/top-langs` | Most-used languages — layouts: `normal`, `compact`, `donut`, `donut-vertical`, `pie` |
+| `/api/streak` | Contribution streak — `mode=daily \| weekly` |
+| `/api/activity` | Activity heatmap |
+| `/api/pin?repo=<name>` | Single pinned repository card |
+| `/api/pin` | Pinned repositories grid |
+| `/api/devops` | CI/CD, CodeFactor, and security-related signals |
+| `/api/coding-stats` | Coding activity (WakaTime-style, derived from public GitHub events) |
+| `/api/wakatime` | Legacy alias for `/api/coding-stats` |
+| `/health` | JSON health snapshot (uptime, memory, cache, GitHub rate-limit headroom) |
+
+## Customizing
+
+Every card supports the parameters below. Hex colors are passed **without** the leading `#`.
+
+| Parameter | Type | Default | Notes |
+|---|---|---|---|
+| `theme` | `dracula-black` \| `pro-dark` | `dracula-black` | Theme id |
+| `locale` | `en` \| `pt-br` \| `es` | `en` | Card copy language |
+| `hide_title` | bool | `false` | |
+| `hide_border` | bool | `false` | |
+| `custom_title` | string ≤100 | — | Override default title |
+| `border_radius` | 0–50 | `12` | Card corner radius |
+| `bg_color` | hex | — | Background |
+| `text_color` | hex | — | Body text |
+| `title_color` | hex | — | Title |
+| `icon_color` | hex | — | Icons |
+| `border_color` | hex | — | Border |
+| `disable_animations` | bool | `false` | |
+| `cache_seconds` | 300–86400 | `14400` | CDN/client cache hint (4h default) |
+
+Endpoint-specific options — `layout`, `langs_count`, `hide` / `show` (stats), `mode` (streak), `repo` and `show_owner` (pin), `include_codefactor` / `include_security` / `workflows_count` (devops) — are documented in [`src/common/validators.ts`](src/common/validators.ts).
+
+### Themed examples
+
+```markdown
+<!-- Pro Dark with custom title -->
+![](https://esousa97.com/api/stats?username=YOUR_LOGIN&theme=pro-dark&custom_title=My%20GitHub%20Stats)
+
+<!-- Donut top-langs in pt-br -->
+![](https://esousa97.com/api/top-langs?username=YOUR_LOGIN&layout=donut&locale=pt-br)
+
+<!-- Single pinned repo -->
+![](https://esousa97.com/api/pin?username=YOUR_LOGIN&repo=engineering-overview-pro)
+
+<!-- GitHub-dark color override -->
+![](https://esousa97.com/api/stats?username=YOUR_LOGIN&bg_color=0d1117&text_color=c9d1d9&title_color=58a6ff&border_color=30363d)
+```
+
+## Rate limits & fair use
+
+- The public instance is rate-limited to **60 requests per minute** per client IP.
+- Responses use long cache hints (`cache_seconds=14400` by default), so README embeds rarely hit the limit.
+- The service is best-effort and free. For high-traffic dashboards or guaranteed availability, please **self-host** (next section).
+
+## Self-hosting
+
+The application is a standard Node.js service — no Docker required, though you may containerize it if you prefer.
+
+### Requirements
 
 - **Node.js** 22 or newer
-- At least one **GitHub Personal Access Token** (PAT) to avoid unauthenticated rate limits
+- One **GitHub Personal Access Token** (PAT) — fine-scoped, public read is enough; private fields require additional scopes
 
-## Quick start
+### Run locally
 
 ```bash
 git clone https://github.com/esousa-dev/engineering-overview-pro.git
 cd engineering-overview-pro
 npm install
 cp .env.example .env
-# Edit .env and set PAT_1 to a fine-scoped or classic PAT with repo read access as needed
+# Edit .env and set PAT_1
 npm run dev
 ```
 
-The server listens on `http://localhost:3000` by default.
+Server listens on `http://localhost:3000`.
 
-## Environment variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `PAT_1` | Yes | GitHub PAT. You may define `PAT_2`, `PAT_3`, … for round-robin rotation. |
-| `PORT` | No | HTTP port (default `3000`). |
-| `HOST` | No | Bind address (default `0.0.0.0`). |
-| `LOG_LEVEL` | No | Fastify logger level (default `info`). |
-| `TRUST_PROXY` | No | When behind Nginx, Traefik, or similar, set to `true` or a comma-separated allow list so rate limiting uses the real client IP. **Do not** enable if the app is exposed directly to the internet without a trusted proxy (clients could spoof `X-Forwarded-For`). Default `false`. |
-
-There is **no** default GitHub username in configuration; every card URL must include `username`.
-
-## API overview
-
-All card routes require `username` (valid GitHub login). Responses are `image/svg+xml` unless noted.
-
-| Route | Description |
-|-------|-------------|
-| `GET /` | JSON: service message, health URL, and route list |
-| `GET /health` | JSON: uptime, memory, cache size, GitHub rate-limit snapshot |
-| `GET /api/stats` | Profile statistics card |
-| `GET /api/top-langs` | Most-used languages |
-| `GET /api/streak` | Contribution streak |
-| `GET /api/activity` | Activity heatmap |
-| `GET /api/pin` | Pinned repositories (grid) or a single repo with `repo` |
-| `GET /api/devops` | CI/CD, CodeFactor, and security-related signals |
-| `GET /api/coding-stats` | Coding-style stats derived from public GitHub activity |
-| `GET /api/wakatime` | **Legacy alias** for `/api/coding-stats` |
-
-### Example: README badge
-
-```markdown
-[![GitHub Stats](https://your-domain.com/api/stats?username=YOUR_LOGIN)](https://github.com/YOUR_LOGIN)
-```
-
-### Common query parameters (`/api/stats` and shared base)
-
-- `username` (required): GitHub login.
-- `theme`: theme id from `src/themes/index.ts` (default `dracula-black`).
-- `hide_title`, `hide_border`, `hide_rank`: boolean flags.
-- `bg_color`, `text_color`, `title_color`, `icon_color`, `border_color`: hex **without** `#`.
-- `locale`: `en`, `pt-br`, or `es`.
-- `disable_animations`: boolean.
-- `hide` / `show`: comma-separated among `stars`, `commits`, `prs`, `issues`, `contribs` (stats endpoint).
-- `custom_title`: override card title.
-- `cache_seconds`: client cache hint (allowed range enforced by validation; default aligns with CDN-friendly caching).
-
-Endpoint-specific options (layouts, `langs_count`, pin `repo`, DevOps toggles, and coding-stats layout) are validated in `src/common/validators.ts`.
-
-## npm scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Development server with watch (`tsx`) |
-| `npm run build` | Compile to `dist/` |
-| `npm start` | Run `dist/server.js` (loads `.env` when present) |
-| `npm test` | Unit tests (Vitest) |
-| `npm run test:coverage` | Vitest with V8 coverage report (no global gate; useful locally or in custom pipelines) |
-| `npm run verify` | Same checks as CI: Prettier, ESLint, TypeScript, spell (docs + GraphQL), tests, build, `npm audit` |
-| `npm run lint` | ESLint on `src/` |
-| `npm run typecheck` | TypeScript check without emit |
-| `npm run format` | Prettier write on `src/**/*.ts` and `tests/**/*.ts` |
-| `npm run format:check` | Prettier check (CI) |
-| `npm run spell` | cspell on the full tree (local) |
-| `npm run spell:ci` | cspell on documentation and `src/graphql/` only (CI) |
-
-## Production deployment
-
-The application is a standard Node.js service: no Docker is required, though you may containerize it if you prefer.
-
-Example on a VPS:
+### Run in production
 
 ```bash
-git clone https://github.com/esousa-dev/engineering-overview-pro.git
-cd engineering-overview-pro
 npm ci
 npm run build
-cp .env.example .env
-# Set PAT_1 (and optional PAT_n), PORT, TRUST_PROXY as needed
 node dist/server.js
 ```
 
-Use **systemd**, **pm2**, or a process supervisor for restarts and logging. Place **Nginx** or another reverse proxy in front for TLS and optional `TRUST_PROXY=true`.
+Use **systemd**, **pm2**, or any process supervisor for restarts and logs. Put a reverse proxy (Nginx, Traefik, Caddy) in front for TLS and set `TRUST_PROXY=true` so rate limiting sees the real client IP.
 
-Updates:
+### Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `PAT_1` | Yes | GitHub PAT. Define `PAT_2`, `PAT_3`, … for round-robin rotation across multiple tokens. |
+| `PORT` | No | HTTP port (default `3000`) |
+| `HOST` | No | Bind address (default `0.0.0.0`) |
+| `LOG_LEVEL` | No | Fastify logger level (default `info`) |
+| `TRUST_PROXY` | No | `true`, `false`, or comma-separated allow-list. **Only enable behind a trusted proxy** — otherwise clients can spoof `X-Forwarded-For` and bypass rate limiting. Default `false`. |
+
+There is **no** default username; every card URL must include `?username=`.
+
+### Updates
 
 ```bash
 git pull
@@ -166,32 +182,57 @@ npm run build
 
 - Keep PATs scoped to the minimum GitHub permissions you need.
 - Monitor `/health` for rate-limit headroom when traffic grows.
-- Tune `TRUST_PROXY` only when a trusted proxy terminates TLS and sets forwarding headers correctly.
+- Enable `TRUST_PROXY` **only** when a trusted reverse proxy terminates TLS and sets `X-Forwarded-For` correctly.
+
+## Development
+
+| Script | Description |
+|---|---|
+| `npm run dev` | Watch-mode dev server (`tsx`) |
+| `npm run build` | Compile to `dist/` |
+| `npm start` | Run `dist/server.js` (loads `.env` when present) |
+| `npm test` | Unit tests (Vitest, includes GraphQL syntax validation) |
+| `npm run test:coverage` | Vitest with V8 coverage report |
+| `npm run lint` | ESLint on `src/` |
+| `npm run typecheck` | TypeScript check without emit |
+| `npm run format` | Prettier write |
+| `npm run format:check` | Prettier check (CI) |
+| `npm run spell` | cspell on the full tree |
+| `npm run spell:ci` | cspell on docs + GraphQL queries (CI subset) |
+| `npm run verify` | CI parity: format, lint, typecheck, spell, tests, build, `npm audit` |
 
 ## CI/CD and automation
 
-- **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): on every push and pull request to `main` / `dev`, runs Prettier check, ESLint, TypeScript, spell check (documentation plus [`src/graphql/github-queries.ts`](src/graphql/github-queries.ts)), Vitest (including GraphQL syntax validation), production build, and `npm audit --audit-level=high`.
-- **Dependabot** ([`.github/dependabot.yml`](.github/dependabot.yml)): weekly grouped npm updates (Octokit, Fastify, TypeScript/Vitest clusters) and monthly GitHub Actions updates.
-- **Releases** ([`.github/workflows/release.yml`](.github/workflows/release.yml)): pushing a version tag matching `v*` (for example `v1.0.1`) runs the same checks, creates a **GitHub Release** with auto-generated notes, and optionally publishes to **npm** when you set repository variable `NPM_PUBLISH` to `true` and configure the `NPM_TOKEN` secret (otherwise the publish job is skipped).
-
-Local parity with CI:
-
-```bash
-npm run verify
-```
+- **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) — on every push and PR to `main` / `dev`, runs Prettier, ESLint, TypeScript, spell check, Vitest (including GraphQL syntax validation), production build, and `npm audit --audit-level=high`.
+- **Dependabot** ([`.github/dependabot.yml`](.github/dependabot.yml)) — weekly grouped npm updates (Octokit, Fastify, TypeScript/Vitest clusters) and monthly GitHub Actions updates.
+- **Releases** ([`.github/workflows/release.yml`](.github/workflows/release.yml)) — pushing a `v*` tag (e.g. `v1.0.1`) creates a GitHub Release with auto-generated notes; npm publish is opt-in via the `NPM_PUBLISH` repo variable + `NPM_TOKEN` secret.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Security
 
-See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
-
-## Code of conduct
-
-See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities. Please do **not** include real PATs or secrets in issues — use the disclosure channel listed there.
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+<div align="center">
+
+## Author
+
+**Enoque Sousa**
+
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=flat&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/enoque-sousa-bb89aa168/)
+[![GitHub](https://img.shields.io/badge/GitHub-100000?style=flat&logo=github&logoColor=white)](https://github.com/ESousa97)
+[![Portfolio](https://img.shields.io/badge/Portfolio-FF5722?style=flat&logo=target&logoColor=white)](https://enoquesousa.vercel.app)
+
+**[⬆ Back to top](#engineering-overview-pro)**
+
+Made with ❤️ by [Enoque Sousa](https://github.com/ESousa97)
+
+**Project status:** Public service — open for community use
+
+</div>
