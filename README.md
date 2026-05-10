@@ -26,12 +26,10 @@
 
 <p align="center">
   <a href="https://github.com/esousa-dev/engineering-overview-pro/blob/main/.github/dependabot.yml"><img src="https://img.shields.io/badge/Dependabot-enabled-025e8c?logo=dependabot&amp;logoColor=white" alt="Dependabot" /></a>
-  <a href="https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review"><img src="https://img.shields.io/badge/dependency%20review-GitHub-2088FF?logo=githubactions&amp;logoColor=white" alt="Dependency review" /></a>
-  <a href="https://libraries.io/github/esousa-dev/engineering-overview-pro"><img src="https://img.shields.io/librariesio/github/esousa-dev/engineering-overview-pro?label=libraries.io" alt="Libraries.io dependency status" /></a>
+  <a href="https://github.com/esousa-dev/engineering-overview-pro/blob/main/package.json"><img src="https://img.shields.io/github/package-json/dependencies/esousa-dev/engineering-overview-pro?label=dependencies&amp;logo=npm&amp;logoColor=white" alt="Dependencies" /></a>
   <a href="https://github.com/esousa-dev/engineering-overview-pro/blob/main/package.json"><img src="https://img.shields.io/github/package-json/dependency-version/esousa-dev/engineering-overview-pro/dev/typescript?branch=main&amp;label=typescript%20%28dev%29" alt="TypeScript devDependency version" /></a>
   <a href="https://github.com/esousa-dev/engineering-overview-pro/releases"><img src="https://img.shields.io/github/v/release/esousa-dev/engineering-overview-pro?sort=semver&amp;logo=github&amp;label=release" alt="GitHub release" /></a>
-  <a href="https://www.npmjs.com/package/engineering-overview-pro"><img src="https://img.shields.io/npm/v/engineering-overview-pro?logo=npm&amp;label=npm" alt="npm version" /></a>
-  <a href="https://github.com/esousa-dev/engineering-overview-pro/actions/workflows/release.yml"><img src="https://img.shields.io/badge/npm-publish-optional-CB3837?logo=npm&amp;logoColor=white" alt="npm publish optional" /></a>
+  <a href="https://github.com/esousa-dev/engineering-overview-pro/actions/workflows/release.yml"><img src="https://img.shields.io/badge/npm_publish-optional-CB3837?logo=npm&amp;logoColor=white" alt="npm publish optional" /></a>
 </p>
 
 <p align="center">
@@ -175,8 +173,7 @@ npm run build
 
 ## CI/CD and automation
 
-- **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): on every push and pull request to `main` / `dev`, runs Prettier check, ESLint, TypeScript, spell check (documentation plus [`src/graphql/github-queries.ts`](src/graphql/github-queries.ts)), Vitest (including GraphQL syntax validation), production build, and `npm audit`.
-- **Dependency review**: pull requests also run [Dependency review](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review) for high-severity issues in the dependency graph.
+- **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): on every push and pull request to `main` / `dev`, runs Prettier check, ESLint, TypeScript, spell check (documentation plus [`src/graphql/github-queries.ts`](src/graphql/github-queries.ts)), Vitest (including GraphQL syntax validation), production build, and `npm audit --audit-level=high`.
 - **Dependabot** ([`.github/dependabot.yml`](.github/dependabot.yml)): weekly grouped npm updates (Octokit, Fastify, TypeScript/Vitest clusters) and monthly GitHub Actions updates.
 - **Releases** ([`.github/workflows/release.yml`](.github/workflows/release.yml)): pushing a version tag matching `v*` (for example `v1.0.1`) runs the same checks, creates a **GitHub Release** with auto-generated notes, and optionally publishes to **npm** when you set repository variable `NPM_PUBLISH` to `true` and configure the `NPM_TOKEN` secret (otherwise the publish job is skipped).
 

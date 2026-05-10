@@ -59,93 +59,91 @@ interface FetchStreakOptions {
 
 // --- Helper Functions ---
 
-/**
- * Calculates streak metrics given an array of contribution days sorted chronologically.
- */
-function calculateStreaks(contributionDays: { date: string; count: number }[]): StreakStats {
+interface StreakSegment {
+  start: string;
+  end: string;
+  length: number;
+}
+
+function findLongestStreak(days: { date: string; count: number }[]): StreakSegment & { totalContributions: number; firstContribution: string } {
   let totalContributions = 0;
   let firstContribution = '';
+  let longestStart = '';
+  let longestEnd = '';
+  let longestLength = 0;
+  let tempStart = '';
+  let tempLength = 0;
 
-  let currentStreakStart = '';
-  let currentStreakEnd = '';
-  let currentStreakLength = 0;
-
-  let longestStreakStart = '';
-  let longestStreakEnd = '';
-  let longestStreakLength = 0;
-
-  let tempStreakStart = '';
-  let tempStreakLength = 0;
-
-  for (const day of contributionDays) {
+  for (let i = 0; i < days.length; i++) {
+    const day = days[i]!;
     if (day.count > 0) {
       totalContributions += day.count;
-      if (!firstContribution) {
-        firstContribution = day.date;
-      }
-
-      if (tempStreakLength === 0) {
-        tempStreakStart = day.date;
-      }
-      tempStreakLength++;
+      if (!firstContribution) firstContribution = day.date;
+      if (tempLength === 0) tempStart = day.date;
+      tempLength++;
     } else {
-      if (tempStreakLength > longestStreakLength) {
-        longestStreakLength = tempStreakLength;
-        longestStreakStart = tempStreakStart;
-        longestStreakEnd = contributionDays[contributionDays.indexOf(day) - 1]?.date ?? '';
+      if (tempLength > longestLength) {
+        longestLength = tempLength;
+        longestStart = tempStart;
+        longestEnd = days[i - 1]?.date ?? '';
       }
-      tempStreakLength = 0;
-      tempStreakStart = '';
+      tempLength = 0;
     }
   }
 
-  // Check the temp streak at the end
-  if (tempStreakLength > longestStreakLength) {
-    longestStreakLength = tempStreakLength;
-    longestStreakStart = tempStreakStart;
-    longestStreakEnd = contributionDays[contributionDays.length - 1]?.date ?? '';
+  if (tempLength > longestLength) {
+    longestLength = tempLength;
+    longestStart = tempStart;
+    longestEnd = days[days.length - 1]?.date ?? '';
   }
 
-  // Calculate current streak by looking backward from today
-  tempStreakLength = 0;
-  tempStreakStart = '';
-  const today = startOfDay(new Date());
+  return { start: longestStart, end: longestEnd, length: longestLength, totalContributions, firstContribution };
+}
 
-  for (let i = contributionDays.length - 1; i >= 0; i--) {
-    const day = contributionDays[i];
+function findCurrentStreak(days: { date: string; count: number }[]): StreakSegment {
+  const today = startOfDay(new Date());
+  let start = '';
+  let end = '';
+  let length = 0;
+
+  for (let i = days.length - 1; i >= 0; i--) {
+    const day = days[i];
     if (!day) break;
     const date = startOfDay(parseISO(day.date));
 
     // Allow today to be zero (user hasn't contributed yet today)
-    if (day.count === 0 && date.getTime() !== today.getTime()) {
-      break;
-    }
+    if (day.count === 0 && date.getTime() !== today.getTime()) break;
 
     if (day.count > 0) {
-      if (tempStreakLength === 0) {
-        currentStreakEnd = day.date;
-      }
-      currentStreakStart = day.date;
-      tempStreakLength++;
+      if (length === 0) end = day.date;
+      start = day.date;
+      length++;
     }
   }
 
-  currentStreakLength = tempStreakLength;
+  return { start, end, length };
+}
 
+/**
+ * Calculates streak metrics given an array of contribution days sorted chronologically.
+ */
+function calculateStreaks(contributionDays: { date: string; count: number }[]): StreakStats {
   const fallbackDate = new Date().toISOString().split('T')[0] ?? '';
+  const longest = findLongestStreak(contributionDays);
+  const current = findCurrentStreak(contributionDays);
 
   return {
-    totalContributions,
-    firstContribution: firstContribution || fallbackDate,
+    totalContributions: longest.totalContributions,
+    firstContribution: longest.firstContribution || fallbackDate,
     currentStreak: {
-      start: currentStreakStart || fallbackDate,
-      end: currentStreakEnd || fallbackDate,
-      length: currentStreakLength,
+      start: current.start || fallbackDate,
+      end: current.end || fallbackDate,
+      length: current.length,
     },
     longestStreak: {
-      start: longestStreakStart || fallbackDate,
-      end: longestStreakEnd || fallbackDate,
-      length: longestStreakLength,
+      start: longest.start || fallbackDate,
+      end: longest.end || fallbackDate,
+      length: longest.length,
     },
   };
 }

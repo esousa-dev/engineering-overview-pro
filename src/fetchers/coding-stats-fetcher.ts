@@ -50,136 +50,87 @@ const GithubEventSchema = z.object({
 
 const RepoLanguagesSchema = z.record(z.string(), z.number());
 
-/**
- * Fetch and calculate internal coding stats based on GitHub activity.
- */
-export async function fetchInternalCodingStats(username: string): Promise<CodingStatsData> {
-  const cacheKey = cacheManager.buildKey('coding-stats', username, {});
-  const cached = cacheManager.get<CodingStatsData>(cacheKey);
-  if (cached !== undefined) {
-    return cached;
-  }
+type GithubEvent = z.infer<typeof GithubEventSchema>;
 
-  // 1. Fetch User Events
-  const events = await retryWithBackoff(async (token: string) => {
-    const response = await fetch(
-      `${GITHUB_REST_API}/users/${username}/events/public?per_page=100`,
-      {
-        headers: {
-          Authorization: `token ${token}`,
-          'User-Agent': 'engineering-overview-pro',
-        },
-      },
-    );
+// --- Helpers ---
 
-    if (!response.ok) {
-      if (response.status === 404) throw new Error(`User "${username}" not found.`);
-      throw new Error(`GitHub API error: ${response.statusText}`);
-    }
-
-    const data: unknown = await response.json();
-    return z.array(GithubEventSchema).parse(data);
-  });
-
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-  const filteredEvents = events
-    .filter((e) => {
-      const isRecent = new Date(e.created_at) >= sevenDaysAgo;
-      const isValidType = Object.keys(WEIGHTS).includes(e.type);
-      return isRecent && isValidType;
-    })
-    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
-  if (filteredEvents.length === 0) {
-    return {
-      totalSeconds: 0,
-      dailyAverageSeconds: 0,
-      sessions: 0,
-      activeDays: 0,
-      languages: [],
-      projects: [],
-    };
-  }
-
-  // --- Step 1.5: Calculate Adaptive Gap ---
-  let adaptiveGap = SESSION_GAP_MIN;
-  if (filteredEvents.length > 5) {
-    const intervals: number[] = [];
-    for (let i = 1; i < filteredEvents.length; i++) {
-      const current = filteredEvents[i];
-      const prev = filteredEvents[i - 1];
-      if (current && prev) {
-        const diff =
-          (new Date(current.created_at).getTime() - new Date(prev.created_at).getTime()) / 1000;
-        if (diff > 0 && diff < 3600) intervals.push(diff);
-      }
-    }
-    if (intervals.length > 0) {
-      intervals.sort((a, b) => a - b);
-      const median = intervals[Math.floor(intervals.length / 2)] || SESSION_GAP_MIN;
-      adaptiveGap = Math.min(Math.max(median * 1.5, SESSION_GAP_MIN), SESSION_GAP_MAX);
+function calculateAdaptiveGap(events: GithubEvent[]): number {
+  if (events.length <= 5) return SESSION_GAP_MIN;
+  const intervals: number[] = [];
+  for (let i = 1; i < events.length; i++) {
+    const current = events[i];
+    const prev = events[i - 1];
+    if (current && prev) {
+      const diff =
+        (new Date(current.created_at).getTime() - new Date(prev.created_at).getTime()) / 1000;
+      if (diff > 0 && diff < 3600) intervals.push(diff);
     }
   }
+  if (intervals.length === 0) return SESSION_GAP_MIN;
+  intervals.sort((a, b) => a - b);
+  const median = intervals[Math.floor(intervals.length / 2)] ?? SESSION_GAP_MIN;
+  return Math.min(Math.max(median * 1.5, SESSION_GAP_MIN), SESSION_GAP_MAX);
+}
 
-  // 2. Cluster into Sessions
+function calculateEventDuration(event: GithubEvent): number {
+  const type = event.type as keyof typeof WEIGHTS;
+  const weight = WEIGHTS[type] ?? 0.5;
+  let duration = BASE_EVENT_TIME;
+
+  if (type === 'PushEvent') {
+    const commitCount = event.payload?.size ?? 1;
+    duration += commitCount * 120; // +2m per commit
+  } else if (type === 'PullRequestEvent') {
+    const additions = event.payload?.pull_request?.additions ?? 0;
+    const deletions = event.payload?.pull_request?.deletions ?? 0;
+    duration += (additions + deletions) * 0.5; // +0.5s per line
+  }
+
+  // Night mode heuristic: 2am-6am (local time) gets 0.5x
+  const localTime = new Date(new Date(event.created_at).getTime() + TIMEZONE_OFFSET * 3600 * 1000);
+  const hour = localTime.getUTCHours();
+  if (hour >= 2 && hour <= 6) duration *= 0.5;
+
+  return Math.min(duration * weight, MAX_EVENT_TIME);
+}
+
+interface ProjectAccumulator {
+  pushCount: number;
+  seconds: number;
+  lastActivity: string;
+}
+
+interface SessionResult {
+  totalSeconds: number;
+  sessionsCount: number;
+  activeDaysSet: Set<string>;
+  projectStats: Map<string, ProjectAccumulator>;
+}
+
+function processEventSessions(events: GithubEvent[], adaptiveGap: number): SessionResult {
   let totalSeconds = 0;
   let sessionsCount = 0;
   let currentSessionStart: Date | null = null;
   let lastEventTime: Date | null = null;
-  const projectStats = new Map<
-    string,
-    { pushCount: number; seconds: number; lastActivity: string }
-  >();
+  const projectStats = new Map<string, ProjectAccumulator>();
   const activeDaysSet = new Set<string>();
 
-  for (const event of filteredEvents) {
+  for (const event of events) {
     const eventTime = new Date(event.created_at);
-    // Adjust to local time before extracting the date string
     const localTime = new Date(eventTime.getTime() + TIMEZONE_OFFSET * 3600 * 1000);
     const dateString = localTime.toISOString().split('T')[0];
     if (dateString) activeDaysSet.add(dateString);
 
-    // Calculate Event Estimated Time
     const type = event.type as keyof typeof WEIGHTS;
-    const weight = WEIGHTS[type] || 0.5;
-
-    // Scaled padding
-    let eventDuration = BASE_EVENT_TIME;
-    if (type === 'PushEvent') {
-      const commitCount = event.payload?.size || 1;
-      eventDuration += commitCount * 120; // +2m per commit
-    } else if (type === 'PullRequestEvent') {
-      const additions = event.payload?.pull_request?.additions || 0;
-      const deletions = event.payload?.pull_request?.deletions || 0;
-      eventDuration += (additions + deletions) * 0.5; // +0.5s per line
-    }
-
-    // Time-of-day Heuristic (Night mode 2am-6am gets 0.5x)
-    // Apply timezone offset for correct hour detection
-    const localEventTime = new Date(eventTime.getTime() + TIMEZONE_OFFSET * 3600 * 1000);
-    const hour = localEventTime.getUTCHours();
-    if (hour >= 2 && hour <= 6) {
-      eventDuration *= 0.5;
-    }
-
-    const weightedEventTime = Math.min(eventDuration * weight, MAX_EVENT_TIME);
+    const weightedEventTime = calculateEventDuration(event);
 
     const repoName = event.repo.name;
-    const stats = projectStats.get(repoName) || {
-      pushCount: 0,
-      seconds: 0,
-      lastActivity: event.created_at,
-    };
-    stats.pushCount += type === 'PushEvent' ? 1 : 0.2; // Weighted project activity
+    const stats = projectStats.get(repoName) ?? { pushCount: 0, seconds: 0, lastActivity: event.created_at };
+    stats.pushCount += type === 'PushEvent' ? 1 : 0.2;
     stats.seconds += weightedEventTime;
-
-    // Update last activity if this event is more recent
     if (new Date(event.created_at) > new Date(stats.lastActivity)) {
       stats.lastActivity = event.created_at;
     }
-
     projectStats.set(repoName, stats);
 
     if (!currentSessionStart || !lastEventTime) {
@@ -192,7 +143,6 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
     const gap = (eventTime.getTime() - lastEventTime.getTime()) / 1000;
 
     if (gap <= adaptiveGap) {
-      // Continue session
       const sessionDuration = (eventTime.getTime() - currentSessionStart.getTime()) / 1000;
       if (sessionDuration > MAX_SESSION_SECONDS) {
         totalSeconds += MAX_SESSION_SECONDS;
@@ -200,33 +150,28 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
         sessionsCount += 1;
       }
     } else {
-      // New session
-      const finalSessionDuration =
+      const finalDuration =
         (lastEventTime.getTime() - currentSessionStart.getTime()) / 1000 + weightedEventTime;
-      totalSeconds += Math.min(finalSessionDuration, MAX_SESSION_SECONDS);
-
+      totalSeconds += Math.min(finalDuration, MAX_SESSION_SECONDS);
       currentSessionStart = eventTime;
       sessionsCount += 1;
     }
     lastEventTime = eventTime;
   }
 
-  // Add the last session
   if (currentSessionStart && lastEventTime) {
-    const finalSessionDuration =
+    const finalDuration =
       (lastEventTime.getTime() - currentSessionStart.getTime()) / 1000 + BASE_EVENT_TIME;
-    totalSeconds += Math.min(finalSessionDuration, MAX_SESSION_SECONDS);
+    totalSeconds += Math.min(finalDuration, MAX_SESSION_SECONDS);
   }
 
-  // 3. Aggregate Languages for involved Repos
+  return { totalSeconds, sessionsCount, activeDaysSet, projectStats };
+}
+
+async function fetchRepoLanguages(
+  repoList: string[],
+): Promise<Map<string, Record<string, number>>> {
   const repoLanguages = new Map<string, Record<string, number>>();
-  // Sort repos by activity to ensure we get colors for the ones we actually display
-  const sortedRepos = Array.from(projectStats.entries())
-    .sort(([, a], [, b]) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime())
-    .map(([name]) => name);
-
-  const repoList = sortedRepos.slice(0, 15); // Increased limit to 15
-
   await Promise.all(
     repoList.map(async (repoFull) => {
       try {
@@ -243,43 +188,52 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
       }
     }),
   );
+  return repoLanguages;
+}
 
-  // 3. Identify Top 5 Projects (intermediate type to hold fullName)
-  interface IntermediateProject extends CodingStatsProject {
-    fullName: string;
-  }
+interface IntermediateProject extends CodingStatsProject {
+  fullName: string;
+}
 
-  const projects: IntermediateProject[] = Array.from(projectStats.entries())
+function buildTopProjects(
+  projectStats: Map<string, ProjectAccumulator>,
+  repoLanguages: Map<string, Record<string, number>>,
+  totalSeconds: number,
+  filteredEventsLength: number,
+): IntermediateProject[] {
+  return Array.from(projectStats.entries())
     .map(([name, stats]) => {
-      const langs = repoLanguages.get(name) || {};
+      const langs = repoLanguages.get(name) ?? {};
       const sortedLangs = Object.entries(langs).sort(([, a], [, b]) => b - a);
-      const primaryLang = sortedLangs[0]?.[0] || 'Unknown';
-
+      const primaryLang = sortedLangs[0]?.[0] ?? 'Unknown';
       return {
         fullName: name,
-        name: name.split('/')[1] || name,
+        name: name.split('/')[1] ?? name,
         pushCount: Math.round(stats.pushCount),
-        estimatedSeconds: (stats.pushCount / filteredEvents.length) * totalSeconds,
+        estimatedSeconds: (stats.pushCount / filteredEventsLength) * totalSeconds,
         lastActivity: stats.lastActivity,
         color: getLanguageColor(primaryLang),
       };
     })
     .sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime())
     .slice(0, 5);
+}
 
-  // 4. Aggregate Languages ONLY for these Top 5 Projects
+function aggregateLanguages(
+  projects: IntermediateProject[],
+  repoLanguages: Map<string, Record<string, number>>,
+  totalSeconds: number,
+): CodingStatsLanguage[] {
   const globalLangs = new Map<string, number>();
   for (const project of projects) {
-    const langs = repoLanguages.get(project.fullName) || {};
+    const langs = repoLanguages.get(project.fullName) ?? {};
     const weight = project.pushCount || 1;
     for (const [lang, bytes] of Object.entries(langs)) {
-      const current = globalLangs.get(lang) || 0;
-      globalLangs.set(lang, current + bytes * weight);
+      globalLangs.set(lang, (globalLangs.get(lang) ?? 0) + bytes * weight);
     }
   }
-
   const totalBytes = Array.from(globalLangs.values()).reduce((a, b) => a + b, 0);
-  const languages: CodingStatsLanguage[] = Array.from(globalLangs.entries())
+  return Array.from(globalLangs.entries())
     .map(([name, bytes]) => ({
       name,
       percent: totalBytes > 0 ? (bytes / totalBytes) * 100 : 0,
@@ -288,6 +242,63 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
     }))
     .sort((a, b) => b.percent - a.percent)
     .slice(0, 5);
+}
+
+/**
+ * Fetch and calculate internal coding stats based on GitHub activity.
+ */
+export async function fetchInternalCodingStats(username: string): Promise<CodingStatsData> {
+  const cacheKey = cacheManager.buildKey('coding-stats', username, {});
+  const cached = cacheManager.get<CodingStatsData>(cacheKey);
+  if (cached !== undefined) return cached;
+
+  const events = await retryWithBackoff(async (token: string) => {
+    const response = await fetch(
+      `${GITHUB_REST_API}/users/${username}/events/public?per_page=100`,
+      {
+        headers: {
+          Authorization: `token ${token}`,
+          'User-Agent': 'engineering-overview-pro',
+        },
+      },
+    );
+    if (!response.ok) {
+      if (response.status === 404) throw new Error(`User "${username}" not found.`);
+      throw new Error(`GitHub API error: ${response.statusText}`);
+    }
+    return z.array(GithubEventSchema).parse(await response.json());
+  });
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const filteredEvents = events
+    .filter((e) => {
+      const isRecent = new Date(e.created_at) >= sevenDaysAgo;
+      const isValidType = Object.keys(WEIGHTS).includes(e.type);
+      return isRecent && isValidType;
+    })
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+  if (filteredEvents.length === 0) {
+    return { totalSeconds: 0, dailyAverageSeconds: 0, sessions: 0, activeDays: 0, languages: [], projects: [] };
+  }
+
+  const adaptiveGap = calculateAdaptiveGap(filteredEvents);
+  const { totalSeconds, sessionsCount, activeDaysSet, projectStats } = processEventSessions(
+    filteredEvents,
+    adaptiveGap,
+  );
+
+  const sortedRepos = Array.from(projectStats.entries())
+    .sort(([, a], [, b]) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime())
+    .map(([name]) => name)
+    .slice(0, 15);
+
+  const repoLanguages = await fetchRepoLanguages(sortedRepos);
+
+  const projects = buildTopProjects(projectStats, repoLanguages, totalSeconds, filteredEvents.length);
+  const languages = aggregateLanguages(projects, repoLanguages, totalSeconds);
 
   const data: CodingStatsData = {
     totalSeconds: Math.round(totalSeconds),
@@ -298,6 +309,6 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
     projects: projects.map(({ fullName: _, ...p }) => p as CodingStatsProject),
   };
 
-  cacheManager.set(cacheKey, data, 'wakatime'); // Use wakatime TTL
+  cacheManager.set(cacheKey, data, 'wakatime');
   return data;
 }
