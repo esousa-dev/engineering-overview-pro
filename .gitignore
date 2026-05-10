@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+*.log
+coverage/
+.DS_Store
+Thumbs.db
+
+# Local tooling / agents
+.claude/
+.agents/
