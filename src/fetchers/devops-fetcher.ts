@@ -115,7 +115,14 @@ function countRepoMetrics(allRepos: RepoNode[]): RepoMetrics {
     }
   }
 
-  return { hasActionsCount, totalRuns, successfulRuns, dependabotCount, archivedRepos, wellOrganizedCount };
+  return {
+    hasActionsCount,
+    totalRuns,
+    successfulRuns,
+    dependabotCount,
+    archivedRepos,
+    wellOrganizedCount,
+  };
 }
 
 async function calculateCodeFactorResult(
@@ -127,7 +134,9 @@ async function calculateCodeFactorResult(
 
   for (let i = 0; i < publicRepos.length; i += CHUNK_SIZE) {
     const grades = await Promise.all(
-      publicRepos.slice(i, i + CHUNK_SIZE).map((repo) => fetchCodeFactorGrade(repo.owner.login, repo.name)),
+      publicRepos
+        .slice(i, i + CHUNK_SIZE)
+        .map((repo) => fetchCodeFactorGrade(repo.owner.login, repo.name)),
     );
     for (const grade of grades) {
       if (grade) {
@@ -146,11 +155,19 @@ function computeDevOpsResult(
   totalRepos: number,
   publicReposLength: number,
 ): DevOpsData {
-  const { hasActionsCount, totalRuns, successfulRuns, dependabotCount, archivedRepos, wellOrganizedCount } = metrics;
+  const {
+    hasActionsCount,
+    totalRuns,
+    successfulRuns,
+    dependabotCount,
+    archivedRepos,
+    wellOrganizedCount,
+  } = metrics;
   const { aPlusCount, codeFactorTotal } = codeFactor;
 
   const actionsImplScore = (hasActionsCount / totalRepos) * 100;
-  const successRate = totalRuns > 0 ? (successfulRuns / totalRuns) * 100 : hasActionsCount > 0 ? 0 : 100;
+  const successRate =
+    totalRuns > 0 ? (successfulRuns / totalRuns) * 100 : hasActionsCount > 0 ? 0 : 100;
   const ciCdScore = actionsImplScore * 0.4 + successRate * 0.6;
 
   const dependabotScore = (dependabotCount / totalRepos) * 100;

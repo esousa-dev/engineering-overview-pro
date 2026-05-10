@@ -125,7 +125,11 @@ function processEventSessions(events: GithubEvent[], adaptiveGap: number): Sessi
     const weightedEventTime = calculateEventDuration(event);
 
     const repoName = event.repo.name;
-    const stats = projectStats.get(repoName) ?? { pushCount: 0, seconds: 0, lastActivity: event.created_at };
+    const stats = projectStats.get(repoName) ?? {
+      pushCount: 0,
+      seconds: 0,
+      lastActivity: event.created_at,
+    };
     stats.pushCount += type === 'PushEvent' ? 1 : 0.2;
     stats.seconds += weightedEventTime;
     if (new Date(event.created_at) > new Date(stats.lastActivity)) {
@@ -281,7 +285,14 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   if (filteredEvents.length === 0) {
-    return { totalSeconds: 0, dailyAverageSeconds: 0, sessions: 0, activeDays: 0, languages: [], projects: [] };
+    return {
+      totalSeconds: 0,
+      dailyAverageSeconds: 0,
+      sessions: 0,
+      activeDays: 0,
+      languages: [],
+      projects: [],
+    };
   }
 
   const adaptiveGap = calculateAdaptiveGap(filteredEvents);
@@ -297,7 +308,12 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
 
   const repoLanguages = await fetchRepoLanguages(sortedRepos);
 
-  const projects = buildTopProjects(projectStats, repoLanguages, totalSeconds, filteredEvents.length);
+  const projects = buildTopProjects(
+    projectStats,
+    repoLanguages,
+    totalSeconds,
+    filteredEvents.length,
+  );
   const languages = aggregateLanguages(projects, repoLanguages, totalSeconds);
 
   const data: CodingStatsData = {

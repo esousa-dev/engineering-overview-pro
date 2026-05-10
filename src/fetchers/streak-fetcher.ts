@@ -65,7 +65,9 @@ interface StreakSegment {
   length: number;
 }
 
-function findLongestStreak(days: { date: string; count: number }[]): StreakSegment & { totalContributions: number; firstContribution: string } {
+function findLongestStreak(
+  days: { date: string; count: number }[],
+): StreakSegment & { totalContributions: number; firstContribution: string } {
   let totalContributions = 0;
   let firstContribution = '';
   let longestStart = '';
@@ -97,7 +99,13 @@ function findLongestStreak(days: { date: string; count: number }[]): StreakSegme
     longestEnd = days[days.length - 1]?.date ?? '';
   }
 
-  return { start: longestStart, end: longestEnd, length: longestLength, totalContributions, firstContribution };
+  return {
+    start: longestStart,
+    end: longestEnd,
+    length: longestLength,
+    totalContributions,
+    firstContribution,
+  };
 }
 
 function findCurrentStreak(days: { date: string; count: number }[]): StreakSegment {
