@@ -26,7 +26,7 @@
 
 <p align="center">
   <a href="https://github.com/esousa-dev/engineering-overview-pro/blob/main/.github/dependabot.yml"><img src="https://img.shields.io/badge/Dependabot-enabled-025e8c?logo=dependabot&amp;logoColor=white" alt="Dependabot" /></a>
-  <a href="https://github.com/esousa-dev/engineering-overview-pro/blob/main/package.json"><img src="https://img.shields.io/github/package-json/dependencies/esousa-dev/engineering-overview-pro?label=dependencies&amp;logo=npm&amp;logoColor=white" alt="Dependencies" /></a>
+  <a href="https://github.com/esousa-dev/engineering-overview-pro/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/npm_audit-passing-brightgreen?logo=npm&amp;logoColor=white" alt="npm audit passing" /></a>
   <a href="https://github.com/esousa-dev/engineering-overview-pro/blob/main/package.json"><img src="https://img.shields.io/github/package-json/dependency-version/esousa-dev/engineering-overview-pro/dev/typescript?branch=main&amp;label=typescript%20%28dev%29" alt="TypeScript devDependency version" /></a>
   <a href="https://github.com/esousa-dev/engineering-overview-pro/releases"><img src="https://img.shields.io/github/v/release/esousa-dev/engineering-overview-pro?sort=semver&amp;logo=github&amp;label=release" alt="GitHub release" /></a>
   <a href="https://github.com/esousa-dev/engineering-overview-pro/actions/workflows/release.yml"><img src="https://img.shields.io/badge/npm_publish-optional-CB3837?logo=npm&amp;logoColor=white" alt="npm publish optional" /></a>
