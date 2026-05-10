@@ -74,7 +74,7 @@ function calculateAdaptiveGap(events: GithubEvent[]): number {
 
 function calculateEventDuration(event: GithubEvent): number {
   const type = event.type as keyof typeof WEIGHTS;
-  const weight = WEIGHTS[type] ?? 0.5;
+  const weight = WEIGHTS[type] || 0.5;
   let duration = BASE_EVENT_TIME;
 
   if (type === 'PushEvent') {

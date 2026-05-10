@@ -77,7 +77,8 @@ function findLongestStreak(
   let tempLength = 0;
 
   for (let i = 0; i < days.length; i++) {
-    const day = days[i]!;
+    const day = days[i];
+    if (!day) break;
     if (day.count > 0) {
       totalContributions += day.count;
       if (!firstContribution) firstContribution = day.date;
