@@ -231,35 +231,7 @@ export interface DevOpsData {
   readonly overallGrade: RankLevel;
 }
 
-// --- WakaTime Card ---
-
-export interface WakaTimeData {
-  readonly totalSeconds: number;
-  readonly dailyAverage: number;
-  readonly languages: ReadonlyArray<WakaTimeLanguage>;
-  readonly editors: ReadonlyArray<WakaTimeEditor>;
-  readonly bestDay: WakaTimeBestDay | null;
-}
-
-export interface WakaTimeLanguage {
-  readonly name: string;
-  readonly totalSeconds: number;
-  readonly percent: number;
-  readonly color: string;
-}
-
-export interface WakaTimeEditor {
-  readonly name: string;
-  readonly totalSeconds: number;
-  readonly percent: number;
-}
-
-export interface WakaTimeBestDay {
-  readonly date: string;
-  readonly totalSeconds: number;
-}
-
-// --- Coding Stats Card (Internal Replacement) ---
+// --- Coding Stats Card ---
 
 export interface CodingStatsData {
   readonly totalSeconds: number;

@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { retryWithBackoff } from '../common/retryer.js';
 import { cacheManager } from '../common/cache.js';
 import { STREAK_QUERY } from '../graphql/github-queries.js';
-import { formatISO, subYears, startOfDay, parseISO } from 'date-fns';
+import { formatISO, startOfDay, parseISO } from 'date-fns';
 
 export interface StreakStats {
   totalContributions: number;
@@ -161,93 +161,87 @@ function calculateStreaks(contributionDays: { date: string; count: number }[]): 
 
 /**
  * Fetch stats for the Streak card.
- * This reads contributions from today back to the user's creation year.
+ * Reads contributions from today back to the user's creation year.
+ * The current year is fetched first (to get createdAt), then previous
+ * years are fetched concurrently — avoiding a redundant duplicate fetch.
  */
 export async function fetchStreakStats(
   username: string,
   _options: FetchStreakOptions = {},
 ): Promise<StreakStats> {
   const cacheKey = cacheManager.buildKey('streak', username);
-  const cached = cacheManager.get<StreakStats>(cacheKey);
-  if (cached !== undefined) {
-    return cached;
-  }
 
-  // 1. Fetch current year first to establish user creation date
-  const now = new Date();
+  return cacheManager.getOrFetch<StreakStats>(
+    cacheKey,
+    async () => {
+      const now = new Date();
+      const currentYear = now.getFullYear();
 
-  const initialData = await retryWithBackoff(async (token: string) => {
-    const rawData = await graphql(STREAK_QUERY, {
-      login: username,
-      from: formatISO(subYears(now, 1)),
-      to: formatISO(now),
-      headers: { authorization: `Bearer ${token}` },
-    });
-    return UserContributionSchema.parse(rawData);
-  });
-
-  const createdAt = parseISO(initialData.user.createdAt);
-  const startYear = createdAt.getFullYear();
-  const currentYear = now.getFullYear();
-
-  const allContributionDays: { date: string; count: number }[] = [];
-
-  // 2. Fetch all years asynchronously, storing promises to run concurrently
-  const fetchPromises: Promise<z.infer<typeof UserContributionSchema>>[] = [];
-
-  for (let year = currentYear; year >= startYear; year--) {
-    let fromDate = new Date(year, 0, 1);
-    let toDate = new Date(year, 11, 31, 23, 59, 59);
-
-    if (year === currentYear) {
-      toDate = now;
-    }
-    if (year === startYear) {
-      fromDate = createdAt;
-    }
-
-    fetchPromises.push(
-      retryWithBackoff(async (token: string) => {
+      // Fetch Jan 1 → today to get createdAt AND current-year contribution data.
+      // This avoids re-fetching the current year in the concurrent batch below.
+      const initialData = await retryWithBackoff(async (token: string) => {
         const rawData = await graphql(STREAK_QUERY, {
           login: username,
-          from: formatISO(fromDate),
-          to: formatISO(toDate),
+          from: formatISO(new Date(currentYear, 0, 1)),
+          to: formatISO(now),
           headers: { authorization: `Bearer ${token}` },
         });
         return UserContributionSchema.parse(rawData);
-      }),
-    );
-  }
+      });
 
-  const results = await Promise.all(fetchPromises);
+      const createdAt = parseISO(initialData.user.createdAt);
+      const startYear = createdAt.getFullYear();
 
-  // 3. Flatten and sort all days chronologically
-  for (const yearData of results) {
-    for (const week of yearData.user.contributionsCollection.contributionCalendar.weeks) {
-      for (const day of week.contributionDays) {
-        allContributionDays.push({
-          date: day.date,
-          count: day.contributionCount,
-        });
+      const allContributionDays: { date: string; count: number }[] = [];
+
+      // Collect current-year days from the initial fetch
+      for (const week of initialData.user.contributionsCollection.contributionCalendar.weeks) {
+        for (const day of week.contributionDays) {
+          allContributionDays.push({ date: day.date, count: day.contributionCount });
+        }
       }
-    }
-  }
 
-  // Remove duplicates and sort correctly
-  const uniqueDaysMap = new Map<string, number>();
-  for (const day of allContributionDays) {
-    uniqueDaysMap.set(day.date, day.count);
-  }
+      // Fetch previous years concurrently (current year already covered above)
+      const fetchPromises: Promise<z.infer<typeof UserContributionSchema>>[] = [];
 
-  const sortedDays = Array.from(uniqueDaysMap.entries())
-    .map(([date, count]) => ({ date, count }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+      for (let year = currentYear - 1; year >= startYear; year--) {
+        const fromDate = year === startYear ? createdAt : new Date(year, 0, 1);
+        const toDate = new Date(year, 11, 31, 23, 59, 59);
 
-  // 4. Calculate exact streaks
-  const streakStats = calculateStreaks(sortedDays);
+        fetchPromises.push(
+          retryWithBackoff(async (token: string) => {
+            const rawData = await graphql(STREAK_QUERY, {
+              login: username,
+              from: formatISO(fromDate),
+              to: formatISO(toDate),
+              headers: { authorization: `Bearer ${token}` },
+            });
+            return UserContributionSchema.parse(rawData);
+          }),
+        );
+      }
 
-  // 5. Cache and return
-  cacheManager.set(cacheKey, streakStats, 'streak');
+      const results = await Promise.all(fetchPromises);
 
-  return streakStats;
+      for (const yearData of results) {
+        for (const week of yearData.user.contributionsCollection.contributionCalendar.weeks) {
+          for (const day of week.contributionDays) {
+            allContributionDays.push({ date: day.date, count: day.contributionCount });
+          }
+        }
+      }
+
+      const uniqueDaysMap = new Map<string, number>();
+      for (const day of allContributionDays) {
+        uniqueDaysMap.set(day.date, day.count);
+      }
+
+      const sortedDays = Array.from(uniqueDaysMap.entries())
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      return calculateStreaks(sortedDays);
+    },
+    'streak',
+  );
 }

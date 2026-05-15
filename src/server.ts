@@ -9,6 +9,7 @@ import rateLimit from '@fastify/rate-limit';
 
 import { cacheManager } from './common/cache.js';
 import { PORT, HOST, LOG_LEVEL, resolveTrustProxy } from './common/config.js';
+import { indexRoute } from './api/index-route.js';
 import { statsRoute } from './api/stats.js';
 import { topLangsRoute } from './api/top-langs.js';
 import { streakRoute } from './api/streak.js';
@@ -17,6 +18,7 @@ import { pinRoute } from './api/pin.js';
 import { devopsRoute } from './api/devops.js';
 import { codingStatsRoute } from './api/wakatime.js';
 import { getRateLimitStatus } from './common/retryer.js';
+import { startBackgroundPoller } from './common/poller.js';
 
 // Métodos HTTP permitidos: somente leitura.
 const ALLOWED_METHODS = new Set(['GET', 'HEAD']);
@@ -78,21 +80,7 @@ async function buildServer(): Promise<FastifyInstance> {
   });
 
   // ---------- Rotas ----------
-  server.get('/', () => ({
-    message: 'engineering-overview-pro API is running.',
-    health: '/health',
-    usage: 'Pass ?username=<github-login> to any /api/* route.',
-    routes: [
-      '/api/stats?username=<login>',
-      '/api/top-langs?username=<login>',
-      '/api/streak?username=<login>',
-      '/api/activity?username=<login>',
-      '/api/pin?username=<login>',
-      '/api/devops?username=<login>',
-      '/api/coding-stats?username=<login>',
-      '/api/wakatime?username=<login>',
-    ],
-  }));
+  await server.register(indexRoute);
 
   server.get('/health', async () => {
     const memory = process.memoryUsage();
@@ -129,6 +117,7 @@ async function start(): Promise<void> {
   try {
     await server.listen({ port: PORT, host: HOST });
     server.log.info(`Server listening on ${HOST}:${String(PORT)}`);
+    startBackgroundPoller(server.log);
   } catch (err: unknown) {
     server.log.error(err);
     process.exit(1);

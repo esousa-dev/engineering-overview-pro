@@ -157,3 +157,15 @@ export function formatDate(dateStr: string): string {
     year: 'numeric',
   });
 }
+
+/**
+ * Parse comma-separated string into an array of trimmed, lowercase values.
+ * Returns an empty array for undefined or empty input.
+ */
+export function parseCommaSeparated(value: string | undefined): ReadonlyArray<string> {
+  if (value === undefined || value.length === 0) return [];
+  return value
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => s.length > 0);
+}

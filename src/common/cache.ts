@@ -17,7 +17,8 @@ const CACHE_TTLS: Record<string, number> = {
   activity: 21_600, // 6h
   pin: 14_400, // 4h
   devops: 43_200, // 12h
-  wakatime: 14_400, // 4h
+  'coding-stats': 14_400, // 4h
+  wakatime: 14_400, // 4h (kept for legacy /api/wakatime route compatibility)
 };
 
 const MIN_CACHE_SECONDS = 300;
@@ -30,6 +31,7 @@ const DEFAULT_CONFIG: CacheConfig = {
 
 class CacheManager {
   private readonly cache: NodeCache;
+  private readonly inflight = new Map<string, Promise<unknown>>();
 
   constructor(config: CacheConfig = DEFAULT_CONFIG) {
     this.cache = new NodeCache({
@@ -55,6 +57,37 @@ class CacheManager {
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
   get<T>(key: string): T | undefined {
     return this.cache.get<T>(key);
+  }
+
+  /**
+   * Get cached value or fetch it, coalescing concurrent requests for the same key
+   * into a single in-flight fetch so GitHub API is called exactly once per miss.
+   */
+  async getOrFetch<T>(
+    key: string,
+    fetchFn: () => Promise<T>,
+    endpoint?: string,
+    customTTL?: number,
+  ): Promise<T> {
+    const cached = this.get<T>(key);
+    if (cached !== undefined) return cached;
+
+    const inflight = this.inflight.get(key) as Promise<T> | undefined;
+    if (inflight !== undefined) return inflight;
+
+    const promise = fetchFn()
+      .then((value) => {
+        this.set(key, value, endpoint, customTTL);
+        this.inflight.delete(key);
+        return value;
+      })
+      .catch((err: unknown) => {
+        this.inflight.delete(key);
+        throw err;
+      });
+
+    this.inflight.set(key, promise as Promise<unknown>);
+    return promise;
   }
 
   /**

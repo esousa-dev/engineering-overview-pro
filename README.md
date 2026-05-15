@@ -66,20 +66,25 @@ That's it. The service fetches your public GitHub data and returns an SVG, which
 
 ## Available cards
 
-All endpoints require `?username=<github-login>` and return `image/svg+xml`.
+All card endpoints require `?username=<github-login>` and return `image/svg+xml`.
 
 | Endpoint | What it shows |
 |---|---|
 | `/api/stats` | Profile statistics — commits, PRs, issues, stars, contributions, rank |
 | `/api/top-langs` | Most-used languages — layouts: `normal`, `compact`, `donut`, `donut-vertical`, `pie` |
 | `/api/streak` | Contribution streak — `mode=daily \| weekly` |
-| `/api/activity` | Activity heatmap |
+| `/api/activity` | Activity heatmap + radar chart |
 | `/api/pin?repo=<name>` | Single pinned repository card |
 | `/api/pin` | Pinned repositories grid |
 | `/api/devops` | CI/CD, CodeFactor, and security-related signals |
-| `/api/coding-stats` | Coding activity (WakaTime-style, derived from public GitHub events) |
-| `/api/wakatime` | Legacy alias for `/api/coding-stats` |
-| `/health` | JSON health snapshot (uptime, memory, cache, GitHub rate-limit headroom) |
+| `/api/coding-stats` | Coding activity derived from public GitHub events (no external service) |
+
+**Utility endpoints**
+
+| Endpoint | Returns |
+|---|---|
+| `GET /` | Machine-readable JSON catalog of all endpoints with every supported parameter, type, default, and example URL |
+| `GET /health` | JSON snapshot — uptime, memory, cache size, GitHub rate-limit headroom per token |
 
 ## Customizing
 
@@ -101,7 +106,64 @@ Every card supports the parameters below. Hex colors are passed **without** the 
 | `disable_animations` | bool | `false` | |
 | `cache_seconds` | 300–86400 | `14400` | CDN/client cache hint (4h default) |
 
-Endpoint-specific options — `layout`, `langs_count`, `hide` / `show` (stats), `mode` (streak), `repo` and `show_owner` (pin), `include_codefactor` / `include_security` / `workflows_count` (devops) — are documented in [`src/common/validators.ts`](src/common/validators.ts).
+### `/api/stats` — extra parameters
+
+| Parameter | Type | Default | Notes |
+|---|---|---|---|
+| `include_private` | bool | `false` | Count private contributions (requires expanded PAT scope) |
+| `include_archived` | bool | `true` | Include archived repos in star count |
+| `include_forks` | bool | `false` | Include forked repos in star count |
+| `hide_rank` | bool | `false` | Hide the rank badge |
+| `hide` | comma list | — | Hide stat rows: `stars`, `commits`, `prs`, `issues`, `contribs` |
+| `show` | comma list | — | Add extra rows: `reviews`, `discussions_started`, `discussions_answered`, `prs_merged` |
+| `line_height` | 20–40 | `25` | Vertical spacing between rows |
+
+### `/api/top-langs` — extra parameters
+
+| Parameter | Type | Default | Notes |
+|---|---|---|---|
+| `langs_count` | 1–100 | `20` | Max languages to display |
+| `layout` | enum | `normal` | `normal` \| `compact` \| `donut` \| `donut-vertical` \| `pie` |
+| `hide` | comma list | — | Language names to exclude (e.g. `HTML,CSS`) |
+| `exclude_repo` | comma list | — | Repositories to exclude from aggregation |
+| `include_archived` | bool | `true` | Include archived repos |
+| `size_weight` | 0–1 | `1` | Weight given to byte size |
+| `count_weight` | 0–1 | `0` | Weight given to repo count |
+
+### `/api/streak` — extra parameters
+
+| Parameter | Type | Default | Notes |
+|---|---|---|---|
+| `mode` | `daily` \| `weekly` | `daily` | Streak counting granularity |
+| `hide_current_streak` | bool | `false` | Hide the current streak section |
+| `hide_longest_streak` | bool | `false` | Hide the longest streak section |
+
+### `/api/activity` — no extra parameters
+
+Uses only the shared parameters above.
+
+### `/api/pin` — extra parameters
+
+| Parameter | Type | Default | Notes |
+|---|---|---|---|
+| `repo` | string | — | Repository name (without owner). **Omit** for the pinned-repos grid; **include** for a single-repo card. |
+| `show_owner` | bool | `false` | Prefix the repo name with `owner/` |
+| `description_lines_count` | 1–3 | `1` | Lines of description to display |
+
+### `/api/devops` — no extra parameters
+
+Uses only the shared parameters above.
+
+### `/api/coding-stats` — extra parameters
+
+| Parameter | Type | Default | Notes |
+|---|---|---|---|
+| `langs_count` | 1–100 | `5` | Number of top languages to display |
+| `layout` | `normal` \| `compact` | `normal` | Card layout style |
+
+---
+
+> The machine-readable version of this reference (with exact types, ranges, and per-field descriptions) is always available at `GET /` on any running instance.
 
 ### Themed examples
 
@@ -161,11 +223,13 @@ Use **systemd**, **pm2**, or any process supervisor for restarts and logs. Put a
 
 | Variable | Required | Description |
 |---|---|---|
-| `PAT_1` | Yes | GitHub PAT. Define `PAT_2`, `PAT_3`, … for round-robin rotation across multiple tokens. |
+| `PAT_1` | Yes | GitHub PAT. Add `PAT_2`, `PAT_3`, … for round-robin rotation — each token shares the 5 000 req/h quota, so more tokens means more headroom. |
 | `PORT` | No | HTTP port (default `3000`) |
 | `HOST` | No | Bind address (default `0.0.0.0`) |
-| `LOG_LEVEL` | No | Fastify logger level (default `info`) |
+| `LOG_LEVEL` | No | Fastify logger level: `info`, `warn`, `error`, `debug` (default `info`) |
 | `TRUST_PROXY` | No | `true`, `false`, or comma-separated allow-list. **Only enable behind a trusted proxy** — otherwise clients can spoof `X-Forwarded-For` and bypass rate limiting. Default `false`. |
+| `WARM_USERNAMES` | No | Comma-separated GitHub usernames to pre-warm in the background (e.g. `ESousa97`). The service silently refreshes their data before the cache expires, eliminating cold-start latency for every card embed. |
+| `WARM_INTERVAL_MS` | No | How often the background warmer runs in milliseconds. Default `60000` (1 minute). Floor is `30000` (30 s). Warming only fires when the cache has actually expired, so at normal TTLs the warmer makes ≈ 6 GitHub calls per endpoint per day. |
 
 There is **no** default username; every card URL must include `?username=`.
 

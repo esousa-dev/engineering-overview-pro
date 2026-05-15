@@ -74,91 +74,77 @@ export async function fetchTopLanguages(
   options: Partial<FetchTopLangsOptions> = {},
 ): Promise<ReadonlyArray<LanguageData>> {
   const opts: FetchTopLangsOptions = { ...DEFAULT_OPTIONS, ...options };
-
-  // Check cache first
   const cacheKey = cacheManager.buildKey('top-langs', username, { ...opts });
-  const cached = cacheManager.get<ReadonlyArray<LanguageData>>(cacheKey);
-  if (cached !== undefined) {
-    return cached;
-  }
 
-  const allRepoNodes: z.infer<typeof RepoNodeSchema>[] = [];
-  let hasNextPage = true;
-  let cursor: string | null = null;
+  return cacheManager.getOrFetch<ReadonlyArray<LanguageData>>(
+    cacheKey,
+    async () => {
+      const allRepoNodes: z.infer<typeof RepoNodeSchema>[] = [];
+      let hasNextPage = true;
+      let cursor: string | null = null;
 
-  // Pagination loop (up to a reasonable limit to prevent endless fetching on massive accounts, e.g. 10 pages / 1000 repos)
-  let pageCount = 0;
-  const MAX_PAGES = 10;
+      // Pagination loop (up to a reasonable limit to prevent endless fetching on massive accounts)
+      let pageCount = 0;
+      const MAX_PAGES = 10;
 
-  while (hasNextPage && pageCount < MAX_PAGES) {
-    const data = await retryWithBackoff(async (token: string) => {
-      const response: unknown = await graphql(TOP_LANGS_QUERY, {
-        login: username,
-        after: cursor,
-        headers: { authorization: `Bearer ${token}` },
-      });
+      while (hasNextPage && pageCount < MAX_PAGES) {
+        const data = await retryWithBackoff(async (token: string) => {
+          const response: unknown = await graphql(TOP_LANGS_QUERY, {
+            login: username,
+            after: cursor,
+            headers: { authorization: `Bearer ${token}` },
+          });
+          return GraphQLResponseSchema.parse(response);
+        });
 
-      return GraphQLResponseSchema.parse(response);
-    });
+        if (data.user === null) {
+          throw new Error(`User "${username}" not found.`);
+        }
 
-    if (data.user === null) {
-      throw new Error(`User "${username}" not found.`);
-    }
+        allRepoNodes.push(...data.user.repositories.nodes);
+        hasNextPage = data.user.repositories.pageInfo.hasNextPage;
+        cursor = data.user.repositories.pageInfo.endCursor;
+        pageCount++;
+      }
 
-    allRepoNodes.push(...data.user.repositories.nodes);
+      const langMap = new Map<string, { size: number; count: number; color: string }>();
+      const hideSet = new Set(opts.hideLanguages.map((l) => l.toLowerCase()));
 
-    hasNextPage = data.user.repositories.pageInfo.hasNextPage;
-    cursor = data.user.repositories.pageInfo.endCursor;
-    pageCount++;
-  }
+      for (const repo of allRepoNodes) {
+        if (!opts.includeArchived && repo.isArchived) continue;
+        if (!opts.includePrivate && repo.isPrivate) continue;
+        if (repo.languages === null) continue;
 
-  // Aggregate languages
-  const langMap = new Map<string, { size: number; count: number; color: string }>();
+        for (const edge of repo.languages.edges) {
+          const langName = edge.node.name;
+          if (hideSet.has(langName.toLowerCase())) continue;
 
-  // Use a case-insensitive set for hidden languages
-  const hideSet = new Set(opts.hideLanguages.map((l) => l.toLowerCase()));
+          const langColor = sanitizeSvgColor(edge.node.color, '#858585');
+          const existing = langMap.get(langName) ?? { size: 0, count: 0, color: langColor };
 
-  for (const repo of allRepoNodes) {
-    if (!opts.includeArchived && repo.isArchived) continue;
-    if (!opts.includePrivate && repo.isPrivate) continue;
-    // Note: The GraphQL query already filters `isFork: false`, but we can extra-check if needed.
+          langMap.set(langName, {
+            size: existing.size + edge.size,
+            count: existing.count + 1,
+            color: langColor,
+          });
+        }
+      }
 
-    if (repo.languages === null) continue;
+      // Percentages based on total size of ALL non-hidden languages for accuracy
+      const totalSizeAll = Array.from(langMap.values()).reduce((sum, lang) => sum + lang.size, 0);
 
-    for (const edge of repo.languages.edges) {
-      const langName = edge.node.name;
-      if (hideSet.has(langName.toLowerCase())) continue;
-
-      const langColor = sanitizeSvgColor(edge.node.color, '#858585');
-
-      const existing = langMap.get(langName) ?? { size: 0, count: 0, color: langColor };
-
-      langMap.set(langName, {
-        size: existing.size + edge.size,
-        count: existing.count + 1,
-        color: langColor,
-      });
-    }
-  }
-
-  // Calculate percentages based on the total size of ALL (not hidden) languages for accuracy.
-  const totalSizeAll = Array.from(langMap.values()).reduce((sum, lang) => sum + lang.size, 0);
-
-  // Map to the final shape, filter out languages < 1%, sort, and apply limit
-  const topLangs: LanguageData[] = Array.from(langMap.entries())
-    .map(([name, lang]) => ({
-      name,
-      color: lang.color,
-      size: lang.size,
-      count: lang.count,
-      percentage: totalSizeAll > 0 ? Number(((lang.size / totalSizeAll) * 100).toFixed(2)) : 0,
-    }))
-    .filter((lang) => lang.percentage >= 1.0)
-    .sort((a, b) => b.size - a.size) // sort by size descending
-    .slice(0, opts.limit);
-
-  // Cache successful result
-  cacheManager.set(cacheKey, topLangs, 'top-langs');
-
-  return topLangs;
+      return Array.from(langMap.entries())
+        .map(([name, lang]) => ({
+          name,
+          color: lang.color,
+          size: lang.size,
+          count: lang.count,
+          percentage: totalSizeAll > 0 ? Number(((lang.size / totalSizeAll) * 100).toFixed(2)) : 0,
+        }))
+        .filter((lang) => lang.percentage >= 1.0)
+        .sort((a, b) => b.size - a.size)
+        .slice(0, opts.limit);
+    },
+    'top-langs',
+  );
 }

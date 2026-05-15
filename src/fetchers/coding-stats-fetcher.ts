@@ -14,7 +14,6 @@ const SESSION_GAP_MAX = 12 * 3600; // 12 hours max (user request)
 const BASE_EVENT_TIME = 5 * 60; // 5 minutes base per event
 const MAX_EVENT_TIME = 30 * 60; // 30 minutes cap per single event
 const MAX_SESSION_SECONDS = 12 * 3600; // 12 hours cap for a total session
-const TIMEZONE_OFFSET = -3; // UTC-3
 
 // --- Weights ---
 const WEIGHTS = {
@@ -86,11 +85,6 @@ function calculateEventDuration(event: GithubEvent): number {
     duration += (additions + deletions) * 0.5; // +0.5s per line
   }
 
-  // Night mode heuristic: 2am-6am (local time) gets 0.5x
-  const localTime = new Date(new Date(event.created_at).getTime() + TIMEZONE_OFFSET * 3600 * 1000);
-  const hour = localTime.getUTCHours();
-  if (hour >= 2 && hour <= 6) duration *= 0.5;
-
   return Math.min(duration * weight, MAX_EVENT_TIME);
 }
 
@@ -117,8 +111,7 @@ function processEventSessions(events: GithubEvent[], adaptiveGap: number): Sessi
 
   for (const event of events) {
     const eventTime = new Date(event.created_at);
-    const localTime = new Date(eventTime.getTime() + TIMEZONE_OFFSET * 3600 * 1000);
-    const dateString = localTime.toISOString().split('T')[0];
+    const dateString = eventTime.toISOString().split('T')[0];
     if (dateString) activeDaysSet.add(dateString);
 
     const type = event.type as keyof typeof WEIGHTS;
@@ -253,78 +246,81 @@ function aggregateLanguages(
  */
 export async function fetchInternalCodingStats(username: string): Promise<CodingStatsData> {
   const cacheKey = cacheManager.buildKey('coding-stats', username, {});
-  const cached = cacheManager.get<CodingStatsData>(cacheKey);
-  if (cached !== undefined) return cached;
 
-  const events = await retryWithBackoff(async (token: string) => {
-    const response = await fetch(
-      `${GITHUB_REST_API}/users/${username}/events/public?per_page=100`,
-      {
-        headers: {
-          Authorization: `token ${token}`,
-          'User-Agent': 'engineering-overview-pro',
-        },
-      },
-    );
-    if (!response.ok) {
-      if (response.status === 404) throw new Error(`User "${username}" not found.`);
-      throw new Error(`GitHub API error: ${response.statusText}`);
-    }
-    return z.array(GithubEventSchema).parse(await response.json());
-  });
+  return cacheManager.getOrFetch<CodingStatsData>(
+    cacheKey,
+    async () => {
+      const events = await retryWithBackoff(async (token: string) => {
+        const response = await fetch(
+          `${GITHUB_REST_API}/users/${username}/events/public?per_page=100`,
+          {
+            headers: {
+              Authorization: `token ${token}`,
+              'User-Agent': 'engineering-overview-pro',
+            },
+          },
+        );
+        if (!response.ok) {
+          if (response.status === 404) throw new Error(`User "${username}" not found.`);
+          throw new Error(`GitHub API error: ${response.statusText}`);
+        }
+        return z.array(GithubEventSchema).parse(await response.json());
+      });
 
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const filteredEvents = events
-    .filter((e) => {
-      const isRecent = new Date(e.created_at) >= sevenDaysAgo;
-      const isValidType = Object.keys(WEIGHTS).includes(e.type);
-      return isRecent && isValidType;
-    })
-    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      const filteredEvents = events
+        .filter((e) => {
+          const isRecent = new Date(e.created_at) >= sevenDaysAgo;
+          const isValidType = Object.keys(WEIGHTS).includes(e.type);
+          return isRecent && isValidType;
+        })
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-  if (filteredEvents.length === 0) {
-    return {
-      totalSeconds: 0,
-      dailyAverageSeconds: 0,
-      sessions: 0,
-      activeDays: 0,
-      languages: [],
-      projects: [],
-    };
-  }
+      if (filteredEvents.length === 0) {
+        return {
+          totalSeconds: 0,
+          dailyAverageSeconds: 0,
+          sessions: 0,
+          activeDays: 0,
+          languages: [],
+          projects: [],
+        };
+      }
 
-  const adaptiveGap = calculateAdaptiveGap(filteredEvents);
-  const { totalSeconds, sessionsCount, activeDaysSet, projectStats } = processEventSessions(
-    filteredEvents,
-    adaptiveGap,
+      const adaptiveGap = calculateAdaptiveGap(filteredEvents);
+      const { totalSeconds, sessionsCount, activeDaysSet, projectStats } = processEventSessions(
+        filteredEvents,
+        adaptiveGap,
+      );
+
+      const sortedRepos = Array.from(projectStats.entries())
+        .sort(([, a], [, b]) =>
+          new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime(),
+        )
+        .map(([name]) => name)
+        .slice(0, 15);
+
+      const repoLanguages = await fetchRepoLanguages(sortedRepos);
+
+      const projects = buildTopProjects(
+        projectStats,
+        repoLanguages,
+        totalSeconds,
+        filteredEvents.length,
+      );
+      const languages = aggregateLanguages(projects, repoLanguages, totalSeconds);
+
+      return {
+        totalSeconds: Math.round(totalSeconds),
+        dailyAverageSeconds: Math.round(totalSeconds / (activeDaysSet.size || 1)),
+        sessions: sessionsCount,
+        activeDays: activeDaysSet.size,
+        languages,
+        projects: projects.map(({ fullName: _, ...p }) => p as CodingStatsProject),
+      };
+    },
+    'coding-stats',
   );
-
-  const sortedRepos = Array.from(projectStats.entries())
-    .sort(([, a], [, b]) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime())
-    .map(([name]) => name)
-    .slice(0, 15);
-
-  const repoLanguages = await fetchRepoLanguages(sortedRepos);
-
-  const projects = buildTopProjects(
-    projectStats,
-    repoLanguages,
-    totalSeconds,
-    filteredEvents.length,
-  );
-  const languages = aggregateLanguages(projects, repoLanguages, totalSeconds);
-
-  const data: CodingStatsData = {
-    totalSeconds: Math.round(totalSeconds),
-    dailyAverageSeconds: Math.round(totalSeconds / (activeDaysSet.size || 1)),
-    sessions: sessionsCount,
-    activeDays: activeDaysSet.size,
-    languages,
-    projects: projects.map(({ fullName: _, ...p }) => p as CodingStatsProject),
-  };
-
-  cacheManager.set(cacheKey, data, 'wakatime');
-  return data;
 }

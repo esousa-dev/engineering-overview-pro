@@ -1,5 +1,5 @@
 // ============================================================
-// Coding Stats route handler — /api/coding-stats & /api/wakatime
+// Coding Stats route handler — /api/coding-stats
 // ============================================================
 
 import { WakatimeParamsSchema } from '../common/validators.js';
@@ -15,81 +15,55 @@ import type { SupportedLocale } from '../types/index.js';
 
 /**
  * Coding Stats route plugin for Fastify.
- * Handles both /api/coding-stats and legacy /api/wakatime.
+ * GET /api/coding-stats?username={user}
  */
 export function codingStatsRoute(server: FastifyInstance): void {
-  // Legacy /wakatime endpoint
-  server.get('/wakatime', async (request: FastifyRequest, reply: FastifyReply) => {
-    return handleRequest(request, reply, true);
-  });
-
-  // New canonical /coding-stats endpoint
   server.get('/coding-stats', async (request: FastifyRequest, reply: FastifyReply) => {
-    return handleRequest(request, reply, false);
-  });
-}
+    const parseResult = WakatimeParamsSchema.safeParse(request.query);
 
-/**
- * Handle the actual logic for both endpoints.
- */
-async function handleRequest(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  isLegacy: boolean,
-): Promise<void> {
-  // Validate query params
-  const parseResult = WakatimeParamsSchema.safeParse(request.query);
-
-  if (!parseResult.success) {
-    const errorSvg = renderErrorCard(
-      'Invalid parameters. Please check the documentation.',
-      draculaBlack,
-    );
-    sendSvg(reply, errorSvg, 14_400);
-    return;
-  }
-
-  const params = parseResult.data;
-
-  // Resolve theme
-  const theme = resolveTheme(params.theme, {
-    bgColor: params.bg_color,
-    textColor: params.text_color,
-    titleColor: params.title_color,
-    iconColor: params.icon_color,
-    borderColor: params.border_color,
-  });
-
-  try {
-    const data = await fetchInternalCodingStats(params.username);
-
-    const svg = renderCodingStatsCard(data, {
-      theme,
-      hideBorder: params.hide_border,
-      borderRadius: params.border_radius,
-      hideTitle: params.hide_title,
-      customTitle: params.custom_title,
-      disableAnimations: params.disable_animations,
-      locale: params.locale as SupportedLocale,
-      width: 495,
-      height: 0, // Height calculated in renderer
-      langsCount: params.langs_count,
-    });
-
-    if (isLegacy) {
-      reply.header('X-Deprecated', 'wakatime');
+    if (!parseResult.success) {
+      const errorSvg = renderErrorCard(
+        'Invalid parameters. Please check the documentation.',
+        draculaBlack,
+      );
+      sendSvg(reply, errorSvg, 14_400);
+      return;
     }
 
-    sendSvg(reply, svg, params.cache_seconds);
-  } catch (error: unknown) {
-    request.log.warn({ err: error }, 'wakatime route failed');
-    sendSvg(reply, renderErrorCard(sanitizeUserError(error), theme), 300);
-  }
+    const params = parseResult.data;
+
+    const theme = resolveTheme(params.theme, {
+      bgColor: params.bg_color,
+      textColor: params.text_color,
+      titleColor: params.title_color,
+      iconColor: params.icon_color,
+      borderColor: params.border_color,
+    });
+
+    try {
+      const data = await fetchInternalCodingStats(params.username);
+
+      const svg = renderCodingStatsCard(data, {
+        theme,
+        hideBorder: params.hide_border,
+        borderRadius: params.border_radius,
+        hideTitle: params.hide_title,
+        customTitle: params.custom_title,
+        disableAnimations: params.disable_animations,
+        locale: params.locale as SupportedLocale,
+        width: 495,
+        height: 0,
+        langsCount: params.langs_count,
+      });
+
+      sendSvg(reply, svg, params.cache_seconds);
+    } catch (error: unknown) {
+      request.log.warn({ err: error }, 'coding-stats route failed');
+      sendSvg(reply, renderErrorCard(sanitizeUserError(error), theme), 300);
+    }
+  });
 }
 
-/**
- * Send SVG response with proper headers.
- */
 function sendSvg(reply: FastifyReply, svg: string, cacheSeconds: number): void {
   void reply
     .code(200)

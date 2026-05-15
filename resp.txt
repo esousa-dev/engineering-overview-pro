@@ -1,0 +1,204 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+  width="495" height="182"
+  viewBox="0 0 495 182"
+  role="img"
+  aria-labelledby="card-title card-desc">
+  <title id="card-title">GitHub Stats</title>
+  <desc id="card-desc">ESousa97&apos;s GitHub Stats</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="24" flood-color="#000000" flood-opacity="0.15" />
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.05" />
+    </filter>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d1117" />
+      <stop offset="100%" stop-color="#1e1f29" />
+    </linearGradient>
+    <linearGradient id="border-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2a2d3d" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#2a2d3d" stop-opacity="0.1" />
+    </linearGradient>
+  </defs>
+  <style>
+    
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .stagger { opacity: 1; }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .stagger {
+        opacity: 0;
+        animation: fadeInUp 300ms ease-in-out forwards;
+      }
+    }
+  
+    .title { font-family: 'Segoe UI', Ubuntu, 'Helvetica Neue', sans-serif; }
+    .stat-label { font-family: 'Segoe UI', Ubuntu, 'Helvetica Neue', sans-serif; font-size: 14px; font-weight: 500; }
+    .stat-value { font-family: 'Segoe UI', Ubuntu, 'Helvetica Neue', sans-serif; font-size: 14px; font-weight: 700; }
+    .small { font-family: 'Segoe UI', Ubuntu, 'Helvetica Neue', sans-serif; font-size: 12px; font-weight: 400; }
+  </style>
+  <rect x="0.5" y="0.5"
+    rx="12" ry="12"
+    width="494" height="181"
+    fill="url(#bg-grad)"
+    filter="url(#shadow)"
+    stroke="url(#border-grad)" stroke-width="1" />
+  <rect x="1" y="1"
+    rx="12" ry="12"
+    width="493" height="1"
+    fill="#ffffff" opacity="0.05" />
+  
+    <g transform="translate(24, 33)">
+      <g class="stagger" style="animation-delay: 0ms;">
+        <circle cx="3" cy="0" r="3" fill="#8be9fd" fill-opacity="0.75" />
+        <text x="14" y="0"
+          class="title"
+          dominant-baseline="central"
+          fill="#bd93f9"
+          font-size="14"
+          font-weight="600"
+          letter-spacing="0.15"
+          font-family="'Segoe UI', Ubuntu, 'Helvetica Neue', sans-serif">
+          GitHub Stats
+        </text>
+      </g>
+    </g>
+    <line x1="24" y1="50" x2="471" y2="50"
+      stroke="#2a2d3d" stroke-width="1" stroke-opacity="0.22" />
+  <g transform="translate(0, 55)">
+    
+    
+      <g transform="translate(25, 10)">
+        <g class="stagger" style="animation-delay: 150ms;">
+          <g transform="translate(0, 0)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8be9fd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>
+          </g>
+          <text x="25" y="8"
+            class="stat-label"
+            dominant-baseline="central"
+            fill="#f8f8f2">
+            Total Commits:
+          </text>
+          <text x="190" y="8"
+            class="stat-value"
+            dominant-baseline="central"
+            fill="#f8f8f2"
+            text-anchor="end">
+            341
+          </text>
+        </g>
+      </g>
+      <g transform="translate(25, 35)">
+        <g class="stagger" style="animation-delay: 300ms;">
+          <g transform="translate(0, 0)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8be9fd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </g>
+          <text x="25" y="8"
+            class="stat-label"
+            dominant-baseline="central"
+            fill="#f8f8f2">
+            Repositories:
+          </text>
+          <text x="190" y="8"
+            class="stat-value"
+            dominant-baseline="central"
+            fill="#f8f8f2"
+            text-anchor="end">
+            11
+          </text>
+        </g>
+      </g>
+      <g transform="translate(25, 60)">
+        <g class="stagger" style="animation-delay: 450ms;">
+          <g transform="translate(0, 0)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8be9fd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </g>
+          <text x="25" y="8"
+            class="stat-label"
+            dominant-baseline="central"
+            fill="#f8f8f2">
+            Active Repos (Year):
+          </text>
+          <text x="190" y="8"
+            class="stat-value"
+            dominant-baseline="central"
+            fill="#f8f8f2"
+            text-anchor="end">
+            23
+          </text>
+        </g>
+      </g>
+      <g transform="translate(25, 85)">
+        <g class="stagger" style="animation-delay: 600ms;">
+          <g transform="translate(0, 0)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8be9fd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </g>
+          <text x="25" y="8"
+            class="stat-label"
+            dominant-baseline="central"
+            fill="#f8f8f2">
+            Followers:
+          </text>
+          <text x="190" y="8"
+            class="stat-value"
+            dominant-baseline="central"
+            fill="#f8f8f2"
+            text-anchor="end">
+            226
+          </text>
+        </g>
+      </g>
+    <g transform="translate(372.5, 47.5)">
+        
+    <g transform="translate(0, 0)">
+      <style>
+    @keyframes rankAnimation {
+      to { stroke-dashoffset: 87.9645943005142; }
+    }</style>
+      <circle cx="0" cy="0" r="56"
+        fill="none"
+        stroke="#1e1f29"
+        stroke-width="8"
+        stroke-opacity="0.5" />
+      <circle cx="0" cy="0" r="56"
+        fill="none"
+        stroke="#bd93f9"
+        stroke-width="6"
+        stroke-linecap="round"
+        stroke-dasharray="351.85837720205683"
+        style="animation: rankAnimation 1s ease-in-out forwards; stroke-dashoffset: 351.85837720205683;"
+        transform="rotate(-90)"
+        filter="url(#shadow)" />
+      <text x="0" y="-8"
+        text-anchor="middle"
+        dominant-baseline="central"
+        fill="#bd93f9"
+        font-size="38" font-weight="800"
+        filter="url(#shadow)"
+        font-family="'Segoe UI', Ubuntu, 'Helvetica Neue', sans-serif">
+        A
+      </text>
+      <text x="0" y="24"
+        text-anchor="middle"
+        dominant-baseline="central"
+        fill="#6272a4"
+        font-size="14" font-weight="500"
+        font-family="'Segoe UI', Ubuntu, 'Helvetica Neue', sans-serif">
+        Top 25%
+      </text>
+    </g>
+      </g>
+  
+  </g>
+</svg>

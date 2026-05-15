@@ -9,6 +9,7 @@ import { fetchStats } from '../fetchers/stats-fetcher.js';
 import { renderStatsCard } from '../cards/stats-card.js';
 import { draculaBlack } from '../themes/dracula-black.js';
 import { sanitizeUserError } from '../common/errors.js';
+import { parseCommaSeparated } from '../common/utils.js';
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { SupportedLocale } from '../types/index.js';
@@ -87,15 +88,3 @@ function sendSvg(reply: FastifyReply, svg: string, cacheSeconds: number): void {
     .send(svg);
 }
 
-/**
- * Parse comma-separated string into array of trimmed, lowercase values.
- */
-function parseCommaSeparated(value: string | undefined): ReadonlyArray<string> {
-  if (value === undefined || value.length === 0) {
-    return [];
-  }
-  return value
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter((s) => s.length > 0);
-}

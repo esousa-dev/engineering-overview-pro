@@ -200,31 +200,32 @@ function computeDevOpsResult(
 
 export async function fetchDevOps(username: string): Promise<DevOpsData> {
   const cacheKey = cacheManager.buildKey('devops-v5', username);
-  const cached = cacheManager.get<DevOpsData>(cacheKey);
-  if (cached !== undefined) return cached;
 
-  const data = await retryWithBackoff(async (token: string) => {
-    const response: unknown = await graphql(DEVOPS_QUERY, {
-      login: username,
-      headers: { authorization: `Bearer ${token}` },
-    });
-    return DevOpsResponseSchema.parse(response);
-  });
+  return cacheManager.getOrFetch<DevOpsData>(
+    cacheKey,
+    async () => {
+      const data = await retryWithBackoff(async (token: string) => {
+        const response: unknown = await graphql(DEVOPS_QUERY, {
+          login: username,
+          headers: { authorization: `Bearer ${token}` },
+        });
+        return DevOpsResponseSchema.parse(response);
+      });
 
-  if (!data.user) throw new Error(`User "${username}" not found.`);
+      if (!data.user) throw new Error(`User "${username}" not found.`);
 
-  const allRepos = data.user.repositories.nodes;
-  const publicRepos = allRepos.filter((r) => !r.isPrivate);
-  const totalRepos = allRepos.length;
+      const allRepos = data.user.repositories.nodes;
+      const publicRepos = allRepos.filter((r) => !r.isPrivate);
+      const totalRepos = allRepos.length;
 
-  if (totalRepos === 0) return createEmptyDevOpsData();
+      if (totalRepos === 0) return createEmptyDevOpsData();
 
-  const metrics = countRepoMetrics(allRepos);
-  const codeFactor = await calculateCodeFactorResult(publicRepos);
-  const result = computeDevOpsResult(metrics, codeFactor, totalRepos, publicRepos.length);
-
-  cacheManager.set(cacheKey, result, 'devops', 43_200);
-  return result;
+      const metrics = countRepoMetrics(allRepos);
+      const codeFactor = await calculateCodeFactorResult(publicRepos);
+      return computeDevOpsResult(metrics, codeFactor, totalRepos, publicRepos.length);
+    },
+    'devops',
+  );
 }
 
 function createEmptyDevOpsData(): DevOpsData {

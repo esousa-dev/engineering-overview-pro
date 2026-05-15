@@ -125,68 +125,65 @@ export async function fetchStats(
   options: Partial<FetchStatsOptions> = {},
 ): Promise<UserStats> {
   const opts: FetchStatsOptions = { ...DEFAULT_OPTIONS, ...options };
-
-  // Check cache first
   const cacheKey = cacheManager.buildKey('stats', username, { ...opts });
-  const cached = cacheManager.get<UserStats>(cacheKey);
-  if (cached !== undefined) {
-    return cached;
-  }
 
-  const data = await retryWithBackoff(async (token: string) => {
-    const response: unknown = await graphql(STATS_QUERY, {
-      login: username,
-      headers: { authorization: `Bearer ${token}` },
-    });
+  return cacheManager.getOrFetch<UserStats>(
+    cacheKey,
+    async () => {
+      const data = await retryWithBackoff(async (token: string) => {
+        const response: unknown = await graphql(STATS_QUERY, {
+          login: username,
+          headers: { authorization: `Bearer ${token}` },
+        });
+        return GraphQLResponseSchema.parse(response);
+      });
 
-    return GraphQLResponseSchema.parse(response);
-  });
+      if (data.user === null) {
+        throw new Error(`User "${username}" not found.`);
+      }
 
-  if (data.user === null) {
-    throw new Error(`User "${username}" not found.`);
-  }
+      const { user } = data;
 
-  const { user } = data;
+      const totalStars = user.repositories.nodes
+        .filter((repo) => {
+          if (!opts.includeArchived && repo.isArchived) return false;
+          if (!opts.includeForks && repo.isFork) return false;
+          if (!opts.includePrivate && repo.isPrivate) return false;
+          return true;
+        })
+        .reduce((sum, repo) => sum + repo.stargazerCount, 0);
 
-  // Calculate total stars with filters
-  const totalStars = user.repositories.nodes
-    .filter((repo) => {
-      if (!opts.includeArchived && repo.isArchived) return false;
-      if (!opts.includeForks && repo.isFork) return false;
-      if (!opts.includePrivate && repo.isPrivate) return false;
-      return true;
-    })
-    .reduce((sum, repo) => sum + repo.stargazerCount, 0);
+      const totalCommits =
+        user.contributionsCollection.totalCommitContributions +
+        (opts.includePrivate ? user.contributionsCollection.restrictedContributionsCount : 0);
 
-  const totalCommits =
-    user.contributionsCollection.totalCommitContributions +
-    (opts.includePrivate ? user.contributionsCollection.restrictedContributionsCount : 0);
+      const totalPRs = user.pullRequests.totalCount;
+      const totalIssues = user.issues.totalCount;
+      const totalContributions = user.repositoriesContributedTo.totalCount;
+      const totalRepos = user.repositories.totalCount;
+      const activeRepos = user.contributionsCollection.totalRepositoriesWithContributedCommits;
+      const followers = user.followers.totalCount;
+      const rank = calculateRank(
+        totalStars,
+        totalCommits,
+        totalPRs,
+        totalIssues,
+        totalContributions,
+      );
 
-  const totalPRs = user.pullRequests.totalCount;
-  const totalIssues = user.issues.totalCount;
-  const totalContributions = user.repositoriesContributedTo.totalCount;
-
-  const totalRepos = user.repositories.totalCount;
-  const activeRepos = user.contributionsCollection.totalRepositoriesWithContributedCommits;
-  const followers = user.followers.totalCount;
-
-  const rank = calculateRank(totalStars, totalCommits, totalPRs, totalIssues, totalContributions);
-
-  const stats: UserStats = {
-    username: user.login,
-    totalStars,
-    totalCommits,
-    totalPRs,
-    totalIssues,
-    totalContributions,
-    totalRepos,
-    activeRepos,
-    followers,
-    rank,
-  };
-
-  // Cache successful result
-  cacheManager.set(cacheKey, stats, 'stats');
-
-  return stats;
+      return {
+        username: user.login,
+        totalStars,
+        totalCommits,
+        totalPRs,
+        totalIssues,
+        totalContributions,
+        totalRepos,
+        activeRepos,
+        followers,
+        rank,
+      };
+    },
+    'stats',
+  );
 }

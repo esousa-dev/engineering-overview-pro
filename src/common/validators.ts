@@ -89,15 +89,7 @@ export const PinAllParamsSchema = BaseParamsSchema.extend({
   description_lines_count: z.coerce.number().min(1).max(3).default(1),
 });
 
-// --- DevOps endpoint ---
-
-export const DevOpsParamsSchema = BaseParamsSchema.extend({
-  include_codefactor: z.coerce.boolean().default(true),
-  include_security: z.coerce.boolean().default(true),
-  workflows_count: z.coerce.number().min(1).max(10).default(5),
-});
-
-// --- WakaTime endpoint ---
+// --- Coding Stats endpoint ---
 
 export const WakatimeParamsSchema = BaseParamsSchema.extend({
   hide_title: z.coerce.boolean().default(false),
@@ -113,5 +105,4 @@ export type TopLangsParams = z.infer<typeof TopLangsParamsSchema>;
 export type StreakParams = z.infer<typeof StreakParamsSchema>;
 export type ActivityParams = z.infer<typeof ActivityParamsSchema>;
 export type PinParams = z.infer<typeof PinParamsSchema>;
-export type DevOpsParams = z.infer<typeof DevOpsParamsSchema>;
 export type WakatimeParams = z.infer<typeof WakatimeParamsSchema>;
