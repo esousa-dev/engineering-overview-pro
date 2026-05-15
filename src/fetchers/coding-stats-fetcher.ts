@@ -296,8 +296,8 @@ export async function fetchInternalCodingStats(username: string): Promise<Coding
       );
 
       const sortedRepos = Array.from(projectStats.entries())
-        .sort(([, a], [, b]) =>
-          new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime(),
+        .sort(
+          ([, a], [, b]) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime(),
         )
         .map(([name]) => name)
         .slice(0, 15);

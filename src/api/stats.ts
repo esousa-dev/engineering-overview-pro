@@ -87,4 +87,3 @@ function sendSvg(reply: FastifyReply, svg: string, cacheSeconds: number): void {
     .header('Access-Control-Allow-Origin', '*')
     .send(svg);
 }
-
